@@ -11,6 +11,7 @@
     searchQuery: "",
     coverageOpen: false,
     plOpen: false,
+    insightsOpen: false,
     cardOpen: { notes: true, docs: true, hr: true, book: true },
     notesTab: "team",
     composerScope: "personal",
@@ -32,6 +33,7 @@
     thinking: false,
     askTimer: null,
   };
+  let logoSequence = 0;
 
   const iconPaths = {
     search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
@@ -62,6 +64,59 @@
 
   function icon(name, size = 16) {
     return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${iconPaths[name] || ""}</svg>`;
+  }
+
+  function jarvisLogo(logoState = "idle", size = 40, showLabel = false) {
+    const uid = `jv-logo-${++logoSequence}`;
+    const label = logoState === "thinking" ? "thinking" : "idle";
+    return `
+      <span class="jarvis-logo jarvis-logo--${label} ${showLabel ? "jarvis-logo--labeled" : ""}" style="--jarvis-size:${size}px" data-state="${label}">
+        <svg class="jarvis-logo__mark" viewBox="0 0 120 120" role="img" aria-labelledby="${uid}-title" focusable="false">
+          <title id="${uid}-title">Jarvis AI assistant, ${label}</title>
+          <defs>
+            <radialGradient id="${uid}-core" cx="42%" cy="36%" r="72%">
+              <stop offset="0%" stop-color="var(--jarvis-navy)" stop-opacity="0.7"></stop>
+              <stop offset="46%" stop-color="var(--jarvis-core)"></stop>
+              <stop offset="100%" stop-color="#00030a"></stop>
+            </radialGradient>
+            <radialGradient id="${uid}-halo" cx="50%" cy="50%" r="58%">
+              <stop offset="58%" stop-color="var(--jarvis-blue-2)" stop-opacity="0"></stop>
+              <stop offset="76%" stop-color="var(--jarvis-blue-3)" stop-opacity="0.3"></stop>
+              <stop offset="91%" stop-color="var(--jarvis-blue-light)" stop-opacity="0.16"></stop>
+              <stop offset="100%" stop-color="var(--jarvis-blue-light)" stop-opacity="0"></stop>
+            </radialGradient>
+            <linearGradient id="${uid}-ring" x1="20" y1="20" x2="100" y2="100">
+              <stop offset="0%" stop-color="var(--jarvis-blue-light)"></stop>
+              <stop offset="31%" stop-color="var(--jarvis-blue-3)"></stop>
+              <stop offset="62%" stop-color="var(--jarvis-blue-2)"></stop>
+              <stop offset="100%" stop-color="var(--jarvis-blue-light)"></stop>
+            </linearGradient>
+            <filter id="${uid}-glow" x="-80%" y="-80%" width="260%" height="260%">
+              <feGaussianBlur stdDeviation="3.5" result="blur"></feGaussianBlur>
+              <feMerge><feMergeNode in="blur"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
+            </filter>
+          </defs>
+          <circle class="jarvis-logo__aura" cx="60" cy="60" r="52" fill="url(#${uid}-halo)"></circle>
+          <circle class="jarvis-logo__core-shadow" cx="60" cy="60" r="39" fill="var(--jarvis-bg)"></circle>
+          <circle class="jarvis-logo__core" cx="60" cy="60" r="36.5" fill="url(#${uid}-core)"></circle>
+          <circle class="jarvis-logo__inner-rim" cx="60" cy="60" r="35" fill="none" stroke="var(--jarvis-blue-light)" stroke-opacity="0.08" stroke-width="1"></circle>
+          <g class="jarvis-logo__ring">
+            <circle class="jarvis-logo__ring-base" cx="60" cy="60" r="43" fill="none" stroke="var(--jarvis-blue)" stroke-opacity="0.28" stroke-width="2"></circle>
+            <circle class="jarvis-logo__ring-arc jarvis-logo__ring-arc--primary" cx="60" cy="60" r="43" fill="none" stroke="url(#${uid}-ring)" stroke-dasharray="92 178" stroke-linecap="round" stroke-width="3.4" filter="url(#${uid}-glow)"></circle>
+            <circle class="jarvis-logo__ring-arc jarvis-logo__ring-arc--secondary" cx="60" cy="60" r="43" fill="none" stroke="var(--jarvis-blue-light)" stroke-dasharray="24 246" stroke-dashoffset="122" stroke-linecap="round" stroke-opacity="0.72" stroke-width="2.2"></circle>
+          </g>
+          <g class="jarvis-logo__orbit">
+            <circle class="jarvis-logo__orbit-track" cx="60" cy="60" r="49" fill="none" stroke="var(--jarvis-blue-light)" stroke-dasharray="2 12" stroke-linecap="round" stroke-opacity="0.18" stroke-width="1"></circle>
+            <circle class="jarvis-logo__orbit-point" cx="60" cy="11" r="2.35" fill="var(--jarvis-blue-light)" filter="url(#${uid}-glow)"></circle>
+          </g>
+          <g class="jarvis-logo__eyes">
+            <rect class="jarvis-logo__eye jarvis-logo__eye--left" x="48.4" y="49.2" width="10.8" height="21.6" rx="5.4" transform="rotate(-1 53.8 60)"></rect>
+            <rect class="jarvis-logo__eye jarvis-logo__eye--right" x="62.8" y="49.2" width="10.8" height="21.6" rx="5.4" transform="rotate(1 68.2 60)"></rect>
+          </g>
+        </svg>
+        ${showLabel ? '<span class="jarvis-logo__label" aria-hidden="true">Jarvis</span>' : ""}
+      </span>
+    `;
   }
 
   function escapeHtml(value) {
@@ -108,11 +163,11 @@
   }
 
   function renderApp() {
+    logoSequence = 0;
     root.innerHTML = `
       <div class="jv-app">
         ${renderTopBar()}
         <main class="jv-main">
-          ${renderNextBestAction()}
           <div class="jv-grid">
             <div class="jv-col jv-col-a">
               ${renderNotesCard()}
@@ -124,6 +179,7 @@
             </div>
           </div>
         </main>
+        ${renderInsightsPanel()}
         ${state.focusNoteKey ? renderFocusModal() : ""}
       </div>
     `;
@@ -136,18 +192,7 @@
       <div class="jv-topbar">
         <div class="jv-brand">
           <div class="jv-jarvis-logo" title="Jarvis">
-            <svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true">
-              <defs>
-                <linearGradient id="jv-grad" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0" stop-color="#6BB3FF"></stop>
-                  <stop offset="1" stop-color="#0057D9"></stop>
-                </linearGradient>
-              </defs>
-              <circle cx="16" cy="16" r="14" fill="url(#jv-grad)"></circle>
-              <circle cx="16" cy="16" r="6.5" fill="none" stroke="#fff" stroke-width="1.4" opacity=".95"></circle>
-              <circle cx="16" cy="16" r="2.4" fill="#fff"></circle>
-              <path d="M16 4 L16 7 M16 25 L16 28 M4 16 L7 16 M25 16 L28 16" stroke="#fff" stroke-width="1.4" stroke-linecap="round" opacity=".7"></path>
-            </svg>
+            ${jarvisLogo("idle", 28)}
           </div>
           <div class="jv-brand-name">Jarvis<span class="light">/ FICC</span></div>
         </div>
@@ -284,6 +329,38 @@
     `;
   }
 
+  function renderInsightsPanel() {
+    const hotSignal = data.nba.insights.reduce((max, signal) => signal.heat > max.heat ? signal : max, data.nba.insights[0]);
+    return `
+      <button class="jv-insights-toggle ${state.insightsOpen ? "open" : ""}" data-action="toggle-insights" aria-expanded="${state.insightsOpen}">
+        ${jarvisLogo(state.thinking ? "thinking" : "idle", 28)}
+        <span class="copy">
+          <span class="k">Signals</span>
+          <span class="v">${escapeHtml(hotSignal.kpi)}</span>
+        </span>
+      </button>
+      ${state.insightsOpen ? `
+        <div class="jv-insights-backdrop" data-action="close-insights"></div>
+        <aside class="jv-insights-drawer" aria-label="Jarvis market signals">
+          <header class="jv-insights-head">
+            ${jarvisLogo(state.thinking ? "thinking" : "idle", 42)}
+            <div>
+              <div class="eyebrow">Jarvis Signals</div>
+              <div class="summary">${data.nba.insights.length} live signals · updated 2 min ago</div>
+            </div>
+            <button class="jv-icon-mini" data-action="close-insights" title="Collapse signals">${icon("close", 16)}</button>
+          </header>
+          <div class="jv-signal-grid">
+            ${data.nba.insights.map(renderInsight).join("")}
+          </div>
+          <div class="jv-ask-wrap">
+            ${renderAskJarvis()}
+          </div>
+        </aside>
+      ` : ""}
+    `;
+  }
+
   function renderNextBestAction() {
     return `
       <section class="jv-nba">
@@ -304,9 +381,10 @@
   }
 
   function renderInsight(insight) {
-    const heatColor = insight.heat >= 80 ? "var(--blue-60)" : insight.heat >= 50 ? "var(--amber-50)" : "var(--gray-40)";
+    const heatColor = insight.heat >= 82 ? "var(--blue-60)" : insight.heat >= 58 ? "var(--blue-40)" : insight.heat >= 32 ? "#8aa4cf" : "var(--gray-50)";
+    const heatBg = insight.heat >= 82 ? "rgba(0,87,217,.10)" : insight.heat >= 58 ? "rgba(111,160,255,.12)" : insight.heat >= 32 ? "rgba(138,164,207,.12)" : "rgba(140,146,163,.10)";
     return `
-      <div class="jv-insight" style="border-left: 2px solid ${heatColor}">
+      <div class="jv-insight jv-signal-card" style="--heat-color:${heatColor};--heat-bg:${heatBg};--heat:${insight.heat}%">
         <div class="kpi">${escapeHtml(insight.kpi)}</div>
         <div class="label">${escapeHtml(insight.label)}</div>
         <div class="detail">${escapeHtml(insight.detail)}</div>
@@ -321,7 +399,7 @@
           ${state.chat.map((message) => `
             <div class="jv-ask-msg ${message.who === "Jarvis" ? "jarvis" : "user"}">
               <div class="head">
-                <span class="who">${message.who === "Jarvis" ? icon("sparkle", 10) : ""}${escapeHtml(message.who)}</span>
+                <span class="who">${message.who === "Jarvis" ? jarvisLogo("idle", 14) : ""}${escapeHtml(message.who)}</span>
                 <span class="ts">${escapeHtml(message.ts)}</span>
               </div>
               <div class="text">${escapeHtml(message.text)}</div>
@@ -329,7 +407,7 @@
           `).join("")}
           ${state.thinking ? `
             <div class="jv-ask-msg jarvis thinking">
-              <div class="head"><span class="who">${icon("sparkle", 10)}Jarvis</span></div>
+              <div class="head"><span class="who">${jarvisLogo("thinking", 14)}Jarvis</span></div>
               <div class="text"><span class="dots"><i></i><i></i><i></i></span></div>
             </div>
           ` : ""}
@@ -340,7 +418,7 @@
           `).join("")}
         </div>
         <div class="jv-ask-input">
-          ${icon("sparkle", 14)}
+          ${jarvisLogo(state.thinking ? "thinking" : "idle", 18)}
           <input data-input="ask" type="text" placeholder="Ask Jarvis anything about Vale — fast feedback, no form..." value="${escapeHtml(state.askDraft)}" />
           <button class="send" data-action="send-ask" ${cleanText(state.askDraft) ? "" : "disabled"} title="Send">${icon("send", 14)}</button>
         </div>
@@ -934,6 +1012,12 @@
       state.plOpen = !state.plOpen;
       state.coverageOpen = false;
       renderApp();
+    } else if (action === "toggle-insights") {
+      state.insightsOpen = !state.insightsOpen;
+      renderApp();
+    } else if (action === "close-insights") {
+      state.insightsOpen = false;
+      renderApp();
     } else if (action === "select-client") {
       state.searchOpen = false;
       state.searchQuery = "";
@@ -1060,6 +1144,9 @@
     } else if (event.key === "Escape") {
       if (state.focusNoteKey) {
         closeModal();
+      } else if (state.insightsOpen) {
+        state.insightsOpen = false;
+        renderApp();
       } else {
         state.searchOpen = false;
         state.coverageOpen = false;
