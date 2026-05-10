@@ -11,7 +11,16 @@
     searchQuery: "",
     coverageOpen: false,
     plOpen: false,
+    docsOpen: false,
+    creditOpen: false,
+    hrOpen: false,
+    docsTab: "cgd",
+    docsCounterparty: "all",
+    creditFilter: "",
+    creditPage: 0,
     insightsOpen: false,
+    jarvisFullscreen: false,
+    jarvisSignalsCollapsed: false,
     clientSelected: true,
     loadingPanels: new Set(["relationship", "coverage", "pl", "notes", "hr", "docs", "book", "insights"]),
     refreshingPanels: new Set(),
@@ -39,7 +48,8 @@
     insightFeedbackError: "",
     deletedNoteUndo: null,
     cardOpen: { notes: true, docs: true, hr: true, book: true },
-    notesTab: "team",
+    panelOrder: ["notes", "book"],
+    notesTab: "all",
     composerScope: "personal",
     composerHtml: "",
     listening: false,
@@ -383,7 +393,7 @@
     return `
       <div class="jv-signal-stage">
         <div class="jv-signal-scroller">
-          <div class="jv-signal-grid">
+          <div class="jv-signal-grid single-row">
             <div class="jv-signal-card next skeleton-card">${skeleton("62%", 22)}${skeleton("84%", 12)}${skeleton("70%", 10)}</div>
             ${Array.from({ length: 4 }).map(() => `<div class="jv-signal-card skeleton-card">${skeleton("42%", 18)}${skeleton("82%", 11)}${skeleton("64%", 10)}</div>`).join("")}
           </div>
@@ -453,10 +463,135 @@
     `;
   }
 
+  function closeTopPopovers() {
+    state.coverageOpen = false;
+    state.plOpen = false;
+    state.docsOpen = false;
+    state.creditOpen = false;
+    state.hrOpen = false;
+  }
+
+  function allDocuments() {
+    return ["cgd", "fx"].flatMap((kind) => (data.documents[kind]?.items || []).map((item) => ({ ...item, kind })));
+  }
+
+  function documentStatusMeta(kind, counterpartyId = "all") {
+    const rows = documentRows(kind, counterpartyId);
+    if (!rows.length) return { kind: "danger", label: "Missing", status: "missing" };
+    if (rows.some((row) => row.status === "pending")) return { kind: "warning", label: "Pending", status: "pending" };
+    if (rows.some((row) => row.status === "warning")) return { kind: "warning", label: "Review", status: "warning" };
+    return { kind: "success", label: "Active", status: "active" };
+  }
+
+  function documentsKpi() {
+    const cgd = documentStatusMeta("cgd");
+    const fx = documentStatusMeta("fx");
+    const kind = cgd.kind === "danger" || fx.kind === "danger" ? "danger" : cgd.kind === "warning" || fx.kind === "warning" ? "warning" : "success";
+    return {
+      kind,
+      cgd,
+      fx,
+      label: `CGD ${cgd.label} · FX ${fx.label}`,
+      detail: "Document status by product family and counterparty",
+    };
+  }
+
+  function creditKpi() {
+    const credit = data.documents.credit;
+    const approved = Number(credit.approved) > 0;
+    return {
+      kind: approved ? "success" : "danger",
+      label: approved ? `R$ ${credit.used}m / ${credit.approved}m` : "No limit",
+      detail: approved ? `${credit.utilization}% consumed` : "Credit limit not approved",
+    };
+  }
+
+  function creditCounterparties() {
+    const names = [
+      "Vale S.A.",
+      "Vale Manganês",
+      "Vale Canadá Mining",
+      "Salobo Metais",
+      "Vale Fertilizantes",
+      "Vale International",
+      "Vale Oman Pelletizing",
+      "PT Vale Indonesia",
+      "Minerações Brasileiras",
+      "Vale Shipping",
+      "Vale Energia",
+      "Vale Base Metals",
+    ];
+    return names.map((name, index) => {
+      const approved = [360, 120, 150, 90, 100, 80, 55, 50, 35, 25, 20, 15][index];
+      const used = [332, 78, 121, 44, 86, 58, 19, 17, 9, 7, 5, 3][index];
+      return {
+        id: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+        name,
+        approved,
+        used,
+        available: approved - used,
+      };
+    });
+  }
+
+  function filteredCreditCounterparties() {
+    const query = state.creditFilter.trim().toLowerCase();
+    return creditCounterparties().filter((counterparty) => !query || counterparty.name.toLowerCase().includes(query));
+  }
+
+  function documentCounterparties() {
+    return data.client.members.map((member) => ({ id: member.id, name: member.name }));
+  }
+
+  function documentRows(kind, counterpartyId = "all") {
+    const source = data.documents[kind]?.items || [];
+    const counterparties = counterpartyId === "all"
+      ? documentCounterparties()
+      : documentCounterparties().filter((counterparty) => counterparty.id === counterpartyId);
+    return counterparties.flatMap((counterparty, counterpartyIndex) => source.map((item, itemIndex) => {
+      let status = item.status;
+      if (counterpartyIndex > 0 && item.status === "pending") status = counterpartyIndex % 2 ? "active" : "warning";
+      if (counterpartyIndex > 1 && item.status === "warning") status = counterpartyIndex % 3 ? "active" : "pending";
+      return { ...item, status, counterparty: counterparty.name, counterpartyId: counterparty.id, key: `${kind}-${counterparty.id}-${itemIndex}` };
+    }));
+  }
+
   function cleanText(html) {
     const holder = document.createElement("div");
     holder.innerHTML = html || "";
     return holder.textContent.trim();
+  }
+
+  function decorateHashtags(html) {
+    const holder = document.createElement("div");
+    holder.innerHTML = html || "";
+    const nodes = [];
+    const walker = document.createTreeWalker(holder, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        if (!/(^|\s)#[A-Za-z0-9_-]{2,}/.test(node.nodeValue || "")) return NodeFilter.FILTER_REJECT;
+        if (node.parentElement?.closest(".jv-htag")) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    });
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach((node) => {
+      const fragment = document.createDocumentFragment();
+      const parts = (node.nodeValue || "").split(/((?:^|\s)#[A-Za-z0-9_-]{2,})/g);
+      parts.forEach((part) => {
+        const match = part.match(/^(\s?)(#[A-Za-z0-9_-]{2,})$/);
+        if (!match) {
+          fragment.appendChild(document.createTextNode(part));
+          return;
+        }
+        if (match[1]) fragment.appendChild(document.createTextNode(match[1]));
+        const tag = document.createElement("span");
+        tag.className = "jv-htag";
+        tag.textContent = match[2];
+        fragment.appendChild(tag);
+      });
+      node.parentNode.replaceChild(fragment, node);
+    });
+    return holder.innerHTML;
   }
 
   function noteKey(scope, note) {
@@ -476,19 +611,11 @@
       <div class="jv-app ${state.reduceMotion ? "reduce-motion" : ""} ${state.customizeMode ? "customize-mode" : ""} connection-${state.connection}">
         ${renderTopBar()}
         <main class="jv-main">
-          <div class="jv-grid">
-            <div class="jv-col jv-col-a">
-              ${renderNotesCard()}
-              ${renderHitRatioCard()}
-            </div>
-            <div class="jv-col jv-col-b">
-              ${renderDocumentsCard()}
-              ${renderBookCard()}
-            </div>
+          <div class="jv-stack">
+            ${state.panelOrder.map(renderMainPanel).join("")}
           </div>
         </main>
         ${renderInsightsPanel()}
-        ${renderSystemStatus()}
         ${renderDevControls()}
         ${renderToasts()}
         ${state.focusNoteKey ? renderFocusModal() : ""}
@@ -498,6 +625,12 @@
     syncDynamicControls();
   }
 
+  function renderMainPanel(panelId) {
+    if (panelId === "notes") return renderNotesCard();
+    if (panelId === "book") return renderBookCard();
+    return "";
+  }
+
   function renderTopBar() {
     return `
       <div class="jv-topbar">
@@ -505,7 +638,10 @@
           <div class="jv-jarvis-logo" title="Jarvis">
             ${jarvisLogo("idle", 28)}
           </div>
-          <div class="jv-brand-name">Jarvis<span class="light">/ FICC</span></div>
+          <div>
+            <div class="jv-brand-name">${state.clientSelected ? escapeHtml(data.client.group) : "No client selected"}</div>
+            <div class="jv-top-client">Jarvis / FICC Cockpit</div>
+          </div>
         </div>
         <div class="jv-search-wrap">
           <div class="jv-search">
@@ -516,19 +652,23 @@
           ${state.searchOpen ? renderSearchDropdown() : ""}
         </div>
         <div class="jv-top-actions">
+          ${renderSystemStatus()}
           <button class="jv-icon-mini inverse" data-action="toggle-customize" title="Customize panels">${icon("grid", 15)}</button>
           <button class="jv-icon-mini inverse" data-action="toggle-user-menu" title="User preferences">${icon("settings", 15)}</button>
           ${state.userMenuOpen ? renderUserMenu() : ""}
         </div>
       </div>
-      <div class="jv-client-banner">
-        <div class="left">
-          <span class="name">${state.clientSelected ? escapeHtml(data.client.group) : "No client selected"}</span>
+      <div class="jv-kpi-bar">
+        <div class="jv-kpi-left">
+          <span class="jv-client-name">${state.clientSelected ? escapeHtml(data.client.group) : "No client selected"}</span>
           ${renderHistoricalRelationship()}
         </div>
-        <div class="banner-right">
+        <div class="jv-kpi-strip">
           ${renderCoverageChip()}
           ${renderPLChip()}
+          ${renderDocumentsChip()}
+          ${renderCreditChip()}
+          ${renderHitRatioChip()}
         </div>
       </div>
     `;
@@ -652,7 +792,7 @@
       `;
     }
     return `
-      <div class="jv-cov-wrap" data-hover="coverage">
+      <div class="jv-cov-wrap">
         <button class="jv-cov-chip ${state.coverageOpen ? "open" : ""}" data-action="toggle-coverage">
           ${icon("user", 13)}
           <span class="lab">Coverage</span>
@@ -670,12 +810,9 @@
             ${panelError("coverage") ? renderPanelError("coverage", "Couldn't reach officer coverage.", "Coverage directory unavailable.") : isLoading("coverage") ? renderCoverageSkeleton() : `
               <ul class="jv-cov-list">
                 ${team.map((member) => `
-                  <li class="${member.primary ? "primary" : ""}">
-                    <span class="av">${escapeHtml(member.name.split(" ").pop().slice(0, 2).toUpperCase())}</span>
-                    <div class="meta">
-                      <div class="name">${escapeHtml(member.name)}${member.primary ? '<span class="badge">Mesa lead</span>' : ""}</div>
-                      <div class="area">${escapeHtml(member.area)}</div>
-                    </div>
+                  <li>
+                    <span class="name">${escapeHtml(member.name)}</span>
+                    <span class="area">${escapeHtml(member.area)}</span>
                   </li>
                 `).join("")}
               </ul>
@@ -699,7 +836,7 @@
       `;
     }
     return `
-      <div class="jv-pl-chip-wrap" data-hover="pl">
+      <div class="jv-pl-chip-wrap">
         <button class="jv-pl-chip ${state.plOpen ? "open" : ""}" data-action="toggle-pl">
           <span class="k">P&amp;L · ${escapeHtml(data.pl.period)}</span>
           <span class="v ${isUpdated("pl") ? "jv-number-tick" : ""}" data-action="copy-pl">${isLoading("pl") ? skeleton("78px", 12) : `R$ ${formatNumber(data.pl.value)}<span class="u">m</span>`}</span>
@@ -755,41 +892,234 @@
     `;
   }
 
+  function renderDocumentsChip() {
+    const kpi = documentsKpi();
+    return `
+      <div class="jv-kpi-wrap">
+        <button class="jv-kpi-chip ${kpi.kind} ${state.docsOpen ? "open" : ""}" data-action="toggle-docs">
+          ${icon("fileText", 13)}
+          <span class="lab">Documents</span>
+          <span class="jv-doc-kpi-set">
+            <span class="${kpi.cgd.kind}">CGD ${escapeHtml(kpi.cgd.label)}</span>
+            <span class="${kpi.fx.kind}">FX ${escapeHtml(kpi.fx.label)}</span>
+          </span>
+          ${icon("chevD", 11)}
+        </button>
+        ${state.docsOpen ? renderDocumentsPopover(kpi) : ""}
+      </div>
+    `;
+  }
+
+  function renderDocumentsPopover(kpi) {
+    const selected = state.docsCounterparty;
+    const selectedName = selected === "all" ? "All counterparties" : documentCounterparties().find((counterparty) => counterparty.id === selected)?.name || "Counterparty";
+    const activeKind = state.docsTab === "fx" ? "fx" : "cgd";
+    const activeTitle = activeKind === "cgd" ? "CGD · Derivatives" : "FX · Câmbio";
+    return `
+      <div class="jv-kpi-pop docs">
+        <div class="jv-kpi-pop-head">
+          <div>
+            <div class="t">Documents</div>
+            <div class="s">${escapeHtml(selectedName)} · ${escapeHtml(kpi.detail)}</div>
+          </div>
+          <span class="jv-kpi-state ${escapeHtml(kpi.kind)}">${escapeHtml(kpi.cgd.label)} / ${escapeHtml(kpi.fx.label)}</span>
+        </div>
+        <div class="jv-doc-tabs">
+          <button class="${activeKind === "cgd" ? "active" : ""}" data-action="docs-tab" data-value="cgd">CGD <span class="${kpi.cgd.kind}">${escapeHtml(kpi.cgd.label)}</span></button>
+          <button class="${activeKind === "fx" ? "active" : ""}" data-action="docs-tab" data-value="fx">FX <span class="${kpi.fx.kind}">${escapeHtml(kpi.fx.label)}</span></button>
+        </div>
+        <div class="jv-pop-filter">
+          <label>Counterparty</label>
+          <select class="jv-select" data-input="docs-counterparty">
+            <option value="all" ${selected === "all" ? "selected" : ""}>All counterparties</option>
+            ${documentCounterparties().map((counterparty) => `<option value="${escapeHtml(counterparty.id)}" ${selected === counterparty.id ? "selected" : ""}>${escapeHtml(counterparty.name)}</option>`).join("")}
+          </select>
+        </div>
+        ${renderDocumentSection(activeKind, activeTitle, selected)}
+      </div>
+    `;
+  }
+
+  function renderDocumentSection(kind, title, counterpartyId) {
+    const rows = documentRows(kind, counterpartyId);
+    const meta = documentStatusMeta(kind, counterpartyId);
+    return `
+      <section class="jv-doc-section">
+        <header>
+          <div>
+            <div class="t">${escapeHtml(title)}</div>
+            <div class="s">${rows.length} documents · ${counterpartyId === "all" ? "all counterparties" : "selected counterparty"}</div>
+          </div>
+          <span class="jv-kpi-state ${escapeHtml(meta.kind)}">${escapeHtml(meta.label)}</span>
+        </header>
+        ${rows.length ? `
+          <div class="jv-doc-table-wrap">
+            <table class="jv-doc-table">
+              <thead><tr><th>Counterparty</th><th>Document</th><th>Date</th><th>Status</th></tr></thead>
+              <tbody>
+                ${rows.map((document) => `
+                  <tr>
+                    <td>${escapeHtml(document.counterparty)}</td>
+                    <td><strong>${escapeHtml(document.name)}</strong><span>${escapeHtml(document.sub || "Framework")}</span></td>
+                    <td class="jv-mono">${escapeHtml(document.date)}</td>
+                    <td>${docStatusBadge(document.status)}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        ` : renderEmptyState("error", `No ${title} documents`, "No active document set for this counterparty.")}
+      </section>
+    `;
+  }
+
+  function renderCreditChip() {
+    const credit = data.documents.credit;
+    const kpi = creditKpi();
+    return `
+      <div class="jv-kpi-wrap">
+        <button class="jv-kpi-chip ${kpi.kind} ${state.creditOpen ? "open" : ""}" data-action="toggle-credit">
+          ${icon("layers", 13)}
+          <span class="lab">Credit</span>
+          <span class="v">${escapeHtml(kpi.label)}</span>
+          <span class="mini-gauge"><i style="width:${Math.min(100, credit.utilization)}%"></i></span>
+          ${icon("chevD", 11)}
+        </button>
+        ${state.creditOpen ? renderCreditPopover(kpi) : ""}
+      </div>
+    `;
+  }
+
+  function renderCreditPopover(kpi) {
+    const credit = data.documents.credit;
+    const rows = filteredCreditCounterparties();
+    const pageSize = 5;
+    const maxPage = Math.max(0, Math.ceil(rows.length / pageSize) - 1);
+    if (state.creditPage > maxPage) state.creditPage = maxPage;
+    const pageRows = rows.slice(state.creditPage * pageSize, state.creditPage * pageSize + pageSize);
+    return `
+      <div class="jv-kpi-pop credit">
+        <div class="jv-kpi-pop-head">
+          <div>
+            <div class="t">Credit limit</div>
+            <div class="s">${escapeHtml(kpi.detail)} · last review ${escapeHtml(credit.lastReview)}</div>
+          </div>
+          <span class="jv-kpi-state ${escapeHtml(kpi.kind)}">${kpi.kind === "success" ? "Approved" : "No limit"}</span>
+        </div>
+        <div class="jv-credit-stats compact">
+          <div><span class="k">Approved</span><span class="v jv-mono">R$ ${credit.approved}m</span></div>
+          <div><span class="k">Used</span><span class="v jv-mono">R$ ${credit.used}m</span></div>
+          <div><span class="k">Available</span><span class="v jv-mono ok">R$ ${credit.available}m</span></div>
+        </div>
+        <div class="jv-pop-filter">
+          <label>Counterparty</label>
+          <input data-input="credit-filter" type="search" placeholder="Filter counterparties..." value="${escapeHtml(state.creditFilter)}" />
+        </div>
+        <div class="jv-credit-table-wrap">
+          <table class="jv-credit-table">
+            <thead><tr><th>Counterparty</th><th>Approved</th><th>Used</th><th>Available</th></tr></thead>
+            <tbody>
+              ${pageRows.map((row) => `
+                <tr>
+                  <td>${escapeHtml(row.name)}</td>
+                  <td class="num">R$ ${row.approved}m</td>
+                  <td class="num">R$ ${row.used}m</td>
+                  <td class="num ok">R$ ${row.available}m</td>
+                </tr>
+              `).join("")}
+              ${pageRows.length ? "" : `<tr><td colspan="4" class="empty">No counterparties match this filter.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+        <div class="jv-pop-pager">
+          <span>${rows.length ? `${state.creditPage * pageSize + 1}-${Math.min(rows.length, (state.creditPage + 1) * pageSize)} of ${rows.length}` : "0 counterparties"}</span>
+          <button data-action="credit-page" data-dir="-1" ${state.creditPage === 0 ? "disabled" : ""}>Prev</button>
+          <button data-action="credit-page" data-dir="1" ${state.creditPage >= maxPage ? "disabled" : ""}>Next</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderHitRatioChip() {
+    const fx = data.hitRatio.fx;
+    const ndf = data.hitRatio.ndf;
+    return `
+      <div class="jv-kpi-wrap">
+        <button class="jv-kpi-chip info ${state.hrOpen ? "open" : ""}" data-action="toggle-hr">
+          ${icon("grid", 13)}
+          <span class="lab">Hit ratio</span>
+          <span class="v">FX ${fx.pct}% · NDF ${ndf.pct}%</span>
+          ${icon("chevD", 11)}
+        </button>
+        ${state.hrOpen ? renderHitRatioPopover() : ""}
+      </div>
+    `;
+  }
+
+  function renderHitRatioPopover() {
+    return `
+      <div class="jv-kpi-pop hr">
+        <div class="jv-kpi-pop-head">
+          <div>
+            <div class="t">Hit ratio</div>
+            <div class="s">${escapeHtml(data.hitRatio.period)} · FX and NDF</div>
+          </div>
+        </div>
+        <div class="jv-hr-pair compact">
+          ${renderHitRatioCell("FX", data.hitRatio.fx, "var(--blue-60)")}
+          ${renderHitRatioCell("NDF", data.hitRatio.ndf, "var(--navy-70)")}
+        </div>
+        <div class="jv-hr-platforms compact">
+          ${data.hitRatio.platforms.map((platform) => `
+            <div class="jv-hr-platform">
+              <span class="name">${escapeHtml(platform.name)}</span>
+              <span class="share-bar"><i style="width: ${platform.share}%"></i></span>
+              <span class="share">${platform.share}%</span>
+              <span class="hit">${platform.pct}% hit</span>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  }
+
   function renderInsightsPanel() {
     const visibleInsights = data.nba.insights.filter((insight, index) => !state.actedInsights.has(insightId(insight, index)));
-    const hotSignal = visibleInsights.reduce((max, signal) => signal.heat > max.heat ? signal : max, visibleInsights[0] || { kpi: "Idle", heat: 0 });
+    const signalToggleLabel = state.jarvisSignalsCollapsed ? "Show Insights" : "Hide Insights";
     return `
-      <button class="jv-insights-toggle ${state.insightsOpen ? "open" : ""}" data-action="toggle-insights" aria-expanded="${state.insightsOpen}">
-        ${jarvisLogo(state.thinking ? "thinking" : "idle", 28)}
-        <span class="copy">
-          <span class="k">Signals</span>
-          <span class="v">${escapeHtml(hotSignal.kpi)}</span>
-        </span>
-      </button>
+      ${state.insightsOpen ? "" : `<button class="jv-jarvis-fab" data-action="toggle-insights" aria-expanded="false" title="Open Jarvis">
+        ${jarvisLogo(state.thinking ? "thinking" : "idle", 46)}
+        ${visibleInsights.length ? `<span class="jv-signal-bubble">${visibleInsights.length}</span>` : ""}
+      </button>`}
       ${state.insightsOpen ? `
-        <div class="jv-insights-backdrop" data-action="close-insights"></div>
-        <aside class="jv-insights-drawer" aria-label="Jarvis market signals">
+        <div class="jv-insights-backdrop ${state.jarvisFullscreen ? "fullscreen" : ""}" data-action="close-insights"></div>
+        <aside class="jv-insights-drawer ${state.jarvisFullscreen ? "fullscreen" : ""} ${state.jarvisSignalsCollapsed ? "signals-collapsed" : ""}" aria-label="Jarvis chat">
           <header class="jv-insights-head">
             ${jarvisLogo(state.thinking ? "thinking" : "idle", 42)}
             <div>
-              <div class="eyebrow">Jarvis Signals</div>
-              <div class="summary">${visibleInsights.length} live signals · updated 2 min ago ${renderStateBadges("insights")}</div>
+              <div class="eyebrow">Jarvis</div>
+              <div class="summary">
+                ${visibleInsights.length ? `<button class="jv-insights-head-toggle" data-action="toggle-jarvis-signals">
+                  <span>${signalToggleLabel}</span>
+                  <b>${visibleInsights.length}</b>
+                </button>` : `<span>No insights</span>`}
+                <span class="jv-insights-sync">Updated 2 min ago ${renderStateBadges("insights")}</span>
+              </div>
             </div>
-            <button class="jv-icon-mini" data-action="close-insights" title="Collapse signals">${icon("close", 16)}</button>
+            <button class="jv-icon-mini" data-action="toggle-jarvis-fullscreen" title="${state.jarvisFullscreen ? "Exit fullscreen" : "Fullscreen"}">${icon(state.jarvisFullscreen ? "chevD" : "expand", 15)}</button>
+            <button class="jv-icon-mini" data-action="close-insights" title="Close Jarvis">${icon("close", 16)}</button>
           </header>
-          ${panelError("insights") ? renderPanelError("insights", "Couldn't refresh Jarvis signals.", "Background scan feed unavailable.") : isLoading("insights") ? renderInsightsSkeleton() : visibleInsights.length ? `
+          ${panelError("insights") ? renderPanelError("insights", "Couldn't refresh Jarvis signals.", "Background scan feed unavailable.") : isLoading("insights") ? renderInsightsSkeleton() : visibleInsights.length && !state.jarvisSignalsCollapsed ? `
             <div class="jv-signal-stage">
               <div class="jv-signal-scroller">
-                <div class="jv-signal-grid">
+                <div class="jv-signal-grid single-row">
                   ${visibleInsights.map(renderInsight).join("")}
                 </div>
               </div>
               ${renderInsightDislikeForm()}
             </div>
-          ` : renderEmptyState("info", "No insights", "Jarvis hasn't flagged anything new. Background scan running.")}
-          <div class="jv-ask-wrap">
-            ${renderAskJarvis()}
-          </div>
+          ` : visibleInsights.length ? "" : renderEmptyState("info", "No insights", "Jarvis hasn't flagged anything new. Background scan running.")}
+          <div class="jv-ask-wrap plain">${renderAskJarvis()}</div>
         </aside>
       ` : ""}
     `;
@@ -883,9 +1213,14 @@
             </div>
           `).join("")}
           ${state.thinking ? `
-            <div class="jv-ask-msg jarvis thinking">
-              <div class="head"><span class="who">${jarvisLogo("thinking", 14)}Jarvis</span></div>
-              <div class="text"><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="jv-ask-thinking" role="status" aria-live="polite">
+              ${jarvisLogo("thinking", 34)}
+              <span class="jv-thinking-words">
+                <i>Reading</i>
+                <i>Linking</i>
+                <i>Pricing</i>
+                <i>Drafting</i>
+              </span>
             </div>
           ` : ""}
         </div>
@@ -895,8 +1230,8 @@
           `).join("")}
         </div>
         <div class="jv-ask-input">
-          ${jarvisLogo(state.thinking ? "thinking" : "idle", 18)}
-          <input data-input="ask" type="text" placeholder="Ask Jarvis anything about Vale — fast feedback, no form..." value="${escapeHtml(state.askDraft)}" />
+          ${jarvisLogo(state.thinking ? "thinking" : "idle", 20)}
+          <textarea data-input="ask" rows="1" placeholder="Ask Jarvis anything about Vale...">${escapeHtml(state.askDraft)}</textarea>
           <button class="send" data-action="send-ask" ${cleanText(state.askDraft) ? "" : "disabled"} title="Send">${icon("send", 14)}</button>
         </div>
       </div>
@@ -906,6 +1241,13 @@
   function renderCard(id, title, badge, actions, body, className = "") {
     const open = state.cardOpen[id] !== false;
     const badges = `${badge ? `<span>${badge}</span>` : ""}${renderStateBadges(id)}`;
+    const panelIndex = state.panelOrder.indexOf(id);
+    const customizeTools = state.customizeMode && panelIndex >= 0 ? `
+      <div class="jv-custom-tools" aria-label="Customize ${escapeHtml(title)} panel">
+        <button data-action="custom-move" data-card-id="${escapeHtml(id)}" data-dir="-1" ${panelIndex === 0 ? "disabled" : ""} title="Move panel up">↑</button>
+        <button data-action="custom-move" data-card-id="${escapeHtml(id)}" data-dir="1" ${panelIndex === state.panelOrder.length - 1 ? "disabled" : ""} title="Move panel down">↓</button>
+      </div>
+    ` : "";
     return `
       <section class="jv-card ${open ? "open" : "collapsed"} ${className} ${isUpdated(id) ? "jv-updated" : ""}" data-card="${escapeHtml(id)}">
         ${isRefreshing(id) ? '<div class="jv-refresh-bar"><i></i></div>' : ""}
@@ -913,6 +1255,7 @@
           <button class="jv-card-toggle" data-action="toggle-card" data-card-id="${escapeHtml(id)}" title="${open ? "Collapse" : "Expand"}">${icon(open ? "chevD" : "chevR", 14)}</button>
           <h3 class="jv-card-title">${escapeHtml(title)}</h3>
           ${badges.trim() ? `<span class="jv-card-badge">${badges}</span>` : ""}
+          ${customizeTools}
           <div class="jv-card-actions">${actions || ""}</div>
         </header>
         ${open ? `<div class="jv-card-body">${body}</div>` : ""}
@@ -924,10 +1267,10 @@
   function renderNotesCard() {
     const totalNotes = data.notes.personal.length + data.notes.team.length;
     const actions = `
-      <div class="jv-seg">
+      <div class="jv-seg jv-notes-tabs">
         ${renderSegmentButton("notes-tab", "all", `All · ${totalNotes}`, state.notesTab === "all")}
-        ${renderSegmentButton("notes-tab", "team", `Team · ${data.notes.team.length}`, state.notesTab === "team")}
         ${renderSegmentButton("notes-tab", "personal", `Personal · ${data.notes.personal.length}`, state.notesTab === "personal")}
+        ${renderSegmentButton("notes-tab", "team", `Team · ${data.notes.team.length}`, state.notesTab === "team")}
       </div>
     `;
     if (!state.clientSelected) {
@@ -963,14 +1306,17 @@
               <span class="dot personal"></span>Personal
             </button>
             <button class="jv-mc-scope-btn ${state.composerScope === "team" ? "active" : ""}" data-action="composer-scope" data-value="team">
-              <span class="dot team"></span>Team · shared with FICC desk
+              <span class="dot team"></span>Team
             </button>
           </div>
-          <div class="jv-mc-status">
-            ${state.listening ? `<span class="live"><span class="livedot"></span>Jarvis listening · ${state.voiceWords.length ? `<span class="jv-voice-words">${state.voiceWords.map((word) => `<i>${escapeHtml(word)}</i>`).join(" ")}</span>` : "0:42"}</span>` : state.savingStatus ? `<span class="dictated">${escapeHtml(state.savingStatus)}</span>` : state.hasDictated ? '<span class="dictated">Drafted by Jarvis · edit freely</span>' : '<span class="hint">Type # to tag</span>'}
-          </div>
+          <div class="jv-mc-status" data-region="composer-status">${renderComposerStatus()}</div>
         </div>
         <div class="jv-rich-area" contenteditable="true" data-editor="composer" data-empty="${composerHasContent ? "false" : "true"}" data-placeholder="${state.composerScope === "personal" ? "Write a personal note — or tap the mic to dictate. Use # for tags." : "Write a team note (visible to FICC desk) — or tap the mic to dictate."}" style="min-height: 66px">${state.composerHtml}</div>
+        <div class="jv-tag-shelf" aria-label="Quick note tags">
+          <span>Tags</span>
+          ${["hedge-discussion", "credit-review", "follow-up", "voice-note"].map((tag) => `<button data-action="insert-hashtag" data-tag="${escapeHtml(tag)}" title="Insert hashtag tag">#${escapeHtml(tag)}</button>`).join("")}
+          <button class="convert" data-action="normalize-hashtags" title="Convert typed hashtags into tag pills">Convert typed #tags</button>
+        </div>
         <div class="jv-mc-toolbar">
           ${renderEditorButton("bold", "B")}
           ${renderEditorButton("italic", "I")}
@@ -984,13 +1330,22 @@
           <div class="jv-mc-actions">
             <button class="jv-link-btn" data-action="clear-composer" ${composerHasContent ? "" : "hidden"}>${icon("close", 11)} Clear</button>
             <button class="jv-mc-mic ${state.listening ? "listening" : ""}" data-action="toggle-dictation" title="${state.listening ? "Stop dictation" : "Tap to dictate"}">
-              ${state.listening ? '<span class="bars"><i></i><i></i><i></i><i></i></span>' : icon("mic", 15)}
+              ${icon("mic", 16)}
             </button>
             <button class="jv-btn primary sm" data-action="save-composer" ${composerHasContent ? "" : "disabled"}>${icon("check", 11)} Save ${state.composerScope === "personal" ? "personal" : "team"}</button>
           </div>
         </div>
       </div>
     `;
+  }
+
+  function renderComposerStatus() {
+    if (state.listening) {
+      return `<span class="live">${jarvisLogo("thinking", 16)}<span class="livedot"></span>Jarvis listening · ${state.voiceWords.length ? `<span class="jv-voice-words">${state.voiceWords.map((word) => `<i>${escapeHtml(word)}</i>`).join(" ")}</span>` : "0:42"}</span>`;
+    }
+    if (state.savingStatus) return `<span class="dictated">${escapeHtml(state.savingStatus)}</span>`;
+    if (state.hasDictated) return `<span class="dictated">${jarvisLogo("idle", 16)}Drafted by Jarvis · edit freely</span>`;
+    return '<span class="hint">Click a tag chip or type #word</span>';
   }
 
   function renderEditorButton(command, label, value = "") {
@@ -1325,13 +1680,30 @@
     }
 
     const columns = state.bookView === "positions"
-      ? ["Company", "Side", "Notional", "Strike / Rate", "Maturity", "Days", "MTM (R$ m)"]
-      : ["Date", "Company", "Side", "Notional", "Rate", "Spread (bps)", "Seller"];
+      ? [
+          { label: "Company", cls: "col-company", width: "25%" },
+          { label: "Side", cls: "center col-side", width: "9%" },
+          { label: "Notional", cls: "num col-notional", width: "14%" },
+          { label: "Strike / Rate", cls: "num col-rate", width: "14%" },
+          { label: "Maturity", cls: "num col-date", width: "13%" },
+          { label: "Days", cls: "num col-days", width: "9%" },
+          { label: "MTM (R$ m)", cls: "num col-mtm", width: "16%" },
+        ]
+      : [
+          { label: "Date", cls: "col-date", width: "11%" },
+          { label: "Company", cls: "col-company", width: "23%" },
+          { label: "Side", cls: "center col-side", width: "9%" },
+          { label: "Notional", cls: "num col-notional", width: "15%" },
+          { label: "Rate", cls: "num col-rate", width: "13%" },
+          { label: "Spread (bps)", cls: "num col-spread", width: "16%" },
+          { label: "Seller", cls: "col-seller", width: "13%" },
+        ];
     return `
       <div class="jv-book-tablewrap">
         <table class="jv-table">
+          <colgroup>${columns.map((column) => `<col style="width:${column.width}">`).join("")}</colgroup>
           <thead>
-            <tr>${columns.map((column, index) => `<th class="${index > 1 && column !== "Company" ? "num" : ""}">${escapeHtml(column)}</th>`).join("")}</tr>
+            <tr>${columns.map((column) => `<th class="${column.cls}">${escapeHtml(column.label)}</th>`).join("")}</tr>
           </thead>
           <tbody>
             ${rows.map((row) => state.bookView === "positions" ? renderPositionRow(row) : renderTradeRow(row)).join("")}
@@ -1351,7 +1723,7 @@
     return `
       <tr class="${row.urgent === "critical" ? "row-critical" : row.urgent === "urgent" ? "row-urgent" : ""}">
         <td class="company">${escapeHtml(row.company)}<span class="row-secondary">DV01 ${escapeHtml(row.dv01 || "n/a")} · Δ ${row.mtm > 0 ? "+" : ""}${formatNumber(row.mtm / 10)}</span></td>
-        <td><span class="pill side-${sideClass(row.side)}">${escapeHtml(row.side)}</span></td>
+        <td class="center"><span class="pill side-${sideClass(row.side)}">${escapeHtml(row.side)}</span></td>
         <td class="num">${escapeHtml(row.notional)}</td>
         <td class="num jv-mono">${escapeHtml(row.rate)}</td>
         <td class="num jv-mono">${escapeHtml(row.maturity)}</td>
@@ -1364,13 +1736,13 @@
   function renderTradeRow(row) {
     return `
       <tr class="jv-trade-row" data-tooltip="${escapeHtml(`${row.company} · ${row.seller} desk · counterparty metadata reconciled`)}">
-        <td class="num jv-mono">${escapeHtml(row.date)}</td>
+        <td class="jv-mono">${escapeHtml(row.date)}</td>
         <td class="company">${escapeHtml(row.company)}</td>
-        <td><span class="pill side-${sideClass(row.side)}">${escapeHtml(row.side)}</span></td>
+        <td class="center"><span class="pill side-${sideClass(row.side)}">${escapeHtml(row.side)}</span></td>
         <td class="num">${escapeHtml(row.notional)}</td>
         <td class="num jv-mono">${escapeHtml(row.rate)}</td>
-        <td class="num"><span class="jv-spread-bar"><i style="width: ${(row.spread / row.spreadMax) * 100}%"></i></span>${row.spread}</td>
-        <td>${escapeHtml(row.seller)}</td>
+        <td class="num spread-cell"><span class="jv-spread-bar"><i style="width: ${(row.spread / row.spreadMax) * 100}%"></i></span>${row.spread}</td>
+        <td class="seller">${escapeHtml(row.seller)}</td>
       </tr>
     `;
   }
@@ -1464,7 +1836,6 @@
     data.nba.insights.unshift(insight);
     const id = insightId(insight);
     state.arrivedInsights.add(id);
-    state.insightsOpen = true;
     renderApp();
     pushToast("ai", "Jarvis noticed: credit consumption crossed 70%", "Credit utilization moved through the desk threshold.");
     window.setTimeout(() => {
@@ -1485,17 +1856,17 @@
       const timer = window.setTimeout(() => {
         if (!state.listening) return;
         state.voiceWords.push(word);
-        renderWithFocus('[data-editor="composer"]');
+        updateComposerPanel(true);
       }, 250 + index * 260);
       state.dictationTimers.push(timer);
     });
     const stopTimer = window.setTimeout(() => {
       if (!state.listening) return;
-      stopDictation();
+      stopDictation(false);
       state.voiceWords = [];
       state.composerHtml = `<h3>Suggested note · ${currentTime()}</h3><p>Carla wants to extend the <strong>USD 250M NDF maturing 13/05</strong> and receive a collar restructuring grid by 17:00 BRT.</p><p><strong>Next step:</strong> open roll ticket draft and attach peer pricing. <span class="jv-htag">#voice-note</span></p>`;
       state.hasDictated = true;
-      renderWithFocus('[data-editor="composer"]');
+      updateComposerPanel(true);
       pushToast("ai", "Voice note drafted", "Review before saving to team notes.");
     }, 6000);
     state.dictationTimers.push(stopTimer);
@@ -1585,41 +1956,21 @@
       state.lastSync = currentTime();
       renderApp();
     }, 1200);
-    window.setTimeout(triggerInsight, 3000);
-    window.setTimeout(() => refreshPL(true), 8000);
   }
 
   function bindRenderedEvents() {
-    const coverageWrap = root.querySelector('[data-hover="coverage"]');
-    const plWrap = root.querySelector('[data-hover="pl"]');
-
-    if (coverageWrap) {
-      coverageWrap.addEventListener("mouseenter", () => {
-        state.coverageOpen = true;
-        renderApp();
-      });
-      coverageWrap.addEventListener("mouseleave", () => {
-        state.coverageOpen = false;
-        renderApp();
-      });
-    }
-
-    if (plWrap) {
-      plWrap.addEventListener("mouseenter", () => {
-        state.plOpen = true;
-        renderApp();
-      });
-      plWrap.addEventListener("mouseleave", () => {
-        state.plOpen = false;
-        renderApp();
-      });
-    }
+    return;
   }
 
   function syncDynamicControls() {
     const askStream = root.querySelector('[data-region="ask-stream"]');
     if (askStream) {
       askStream.scrollTop = askStream.scrollHeight;
+    }
+    const askInput = root.querySelector('[data-input="ask"]');
+    if (askInput) {
+      askInput.style.height = "auto";
+      askInput.style.height = `${Math.min(116, askInput.scrollHeight)}px`;
     }
 
     const composerEditor = root.querySelector('[data-editor="composer"]');
@@ -1642,6 +1993,39 @@
     }
   }
 
+  function updateAskPanel(focus = true) {
+    const askWrap = root.querySelector(".jv-ask-wrap");
+    if (!askWrap) {
+      renderWithFocus(focus ? '[data-input="ask"]' : "");
+      return;
+    }
+    askWrap.innerHTML = renderAskJarvis();
+    syncDynamicControls();
+    if (!focus) return;
+    const input = root.querySelector('[data-input="ask"]');
+    if (input) {
+      input.focus();
+      input.selectionStart = input.value.length;
+      input.selectionEnd = input.value.length;
+    }
+  }
+
+  function updateComposerPanel(focus = true) {
+    const composer = root.querySelector(".jv-merged-composer");
+    if (!composer) {
+      renderWithFocus(focus ? '[data-editor="composer"]' : "");
+      return;
+    }
+    composer.outerHTML = renderComposer();
+    syncDynamicControls();
+    if (!focus) return;
+    const editor = root.querySelector('[data-editor="composer"]');
+    if (editor) {
+      editor.focus();
+      placeCaretAtEnd(editor);
+    }
+  }
+
   function placeCaretAtEnd(element) {
     const range = document.createRange();
     range.selectNodeContents(element);
@@ -1659,6 +2043,22 @@
     if (editor) editor.dataset.empty = hasContent ? "false" : "true";
     if (saveButton) saveButton.disabled = !hasContent;
     if (clearButton) clearButton.hidden = !hasContent;
+  }
+
+  function updateComposerStatus() {
+    const status = root.querySelector('[data-region="composer-status"]');
+    if (status) status.innerHTML = renderComposerStatus();
+  }
+
+  function insertHashtag(tagValue) {
+    const editor = root.querySelector('[data-editor="composer"]');
+    if (!editor) return;
+    const tag = String(tagValue || "").replace(/^#/, "").replace(/[^A-Za-z0-9_-]/g, "");
+    if (!tag) return;
+    editor.focus();
+    document.execCommand("insertHTML", false, `<span class="jv-htag">#${escapeHtml(tag)}</span>&nbsp;`);
+    state.composerHtml = editor.innerHTML;
+    updateComposerControls();
   }
 
   function runEditorCommand(command, value, editorSelector) {
@@ -1682,7 +2082,7 @@
     state.chat.push({ who: "You", ts: timestamp, text });
     state.askDraft = "";
     state.thinking = true;
-    renderWithFocus('[data-input="ask"]');
+    updateAskPanel(true);
 
     if (state.askTimer) clearTimeout(state.askTimer);
     state.askTimer = setTimeout(() => {
@@ -1692,8 +2092,8 @@
         ts: timestamp,
         text: "Pulling from CRM, P&L feed and recent voice notes — give me a moment to draft a clean answer.",
       });
-      renderWithFocus('[data-input="ask"]');
-    }, 1200);
+      updateAskPanel(true);
+    }, 2800);
   }
 
   function clearDictationTimers() {
@@ -1719,18 +2119,18 @@
         state.composerHtml = html;
         state.hasDictated = true;
         state.draftStep = index + 1;
-        renderWithFocus('[data-editor="composer"]');
+        updateComposerPanel(true);
       }, delay);
       state.dictationTimers.push(timer);
     });
-    renderWithFocus('[data-editor="composer"]');
+    updateComposerPanel(true);
   }
 
-  function stopDictation() {
+  function stopDictation(shouldRender = true) {
     clearDictationTimers();
     state.listening = false;
     state.draftStep = 0;
-    renderWithFocus('[data-editor="composer"]');
+    if (shouldRender) updateComposerPanel(true);
   }
 
   root.addEventListener("click", (event) => {
@@ -1744,15 +2144,17 @@
 
     const action = actionTarget.dataset.action;
     if (action === "toggle-coverage") {
-      state.coverageOpen = !state.coverageOpen;
-      state.plOpen = false;
+      const nextOpen = !state.coverageOpen;
+      closeTopPopovers();
+      state.coverageOpen = nextOpen;
       renderApp();
     } else if (action === "focus-search") {
       state.searchOpen = true;
       renderWithFocus('[data-input="search"]');
     } else if (action === "toggle-pl") {
-      state.plOpen = !state.plOpen;
-      state.coverageOpen = false;
+      const nextOpen = !state.plOpen;
+      closeTopPopovers();
+      state.plOpen = nextOpen;
       renderApp();
     } else if (action === "copy-pl") {
       event.preventDefault();
@@ -1765,6 +2167,34 @@
       renderApp();
     } else if (action === "close-insights") {
       state.insightsOpen = false;
+      state.jarvisFullscreen = false;
+      renderApp();
+    } else if (action === "toggle-jarvis-fullscreen") {
+      state.jarvisFullscreen = !state.jarvisFullscreen;
+      renderApp();
+    } else if (action === "toggle-jarvis-signals") {
+      state.jarvisSignalsCollapsed = !state.jarvisSignalsCollapsed;
+      renderApp();
+    } else if (action === "toggle-docs") {
+      const nextOpen = !state.docsOpen;
+      closeTopPopovers();
+      state.docsOpen = nextOpen;
+      renderApp();
+    } else if (action === "toggle-credit") {
+      const nextOpen = !state.creditOpen;
+      closeTopPopovers();
+      state.creditOpen = nextOpen;
+      renderApp();
+    } else if (action === "toggle-hr") {
+      const nextOpen = !state.hrOpen;
+      closeTopPopovers();
+      state.hrOpen = nextOpen;
+      renderApp();
+    } else if (action === "credit-page") {
+      state.creditPage = Math.max(0, state.creditPage + Number(actionTarget.dataset.dir || 0));
+      renderApp();
+    } else if (action === "docs-tab") {
+      state.docsTab = actionTarget.dataset.value === "fx" ? "fx" : "cgd";
       renderApp();
     } else if (action === "select-client") {
       reloadVale();
@@ -1781,7 +2211,17 @@
     } else if (action === "toggle-customize") {
       state.customizeMode = !state.customizeMode;
       renderApp();
-      if (state.customizeMode) pushToast("info", "Customize mode enabled", "Panels show resize handles. Press Esc to exit.");
+      if (state.customizeMode) pushToast("info", "Customize mode enabled", "Use ↑/↓ controls on each panel. Press Esc to exit.");
+    } else if (action === "custom-move") {
+      const cardId = actionTarget.dataset.cardId;
+      const direction = Number(actionTarget.dataset.dir);
+      const from = state.panelOrder.indexOf(cardId);
+      const to = from + direction;
+      if (from >= 0 && to >= 0 && to < state.panelOrder.length) {
+        const [panel] = state.panelOrder.splice(from, 1);
+        state.panelOrder.splice(to, 0, panel);
+        renderApp();
+      }
     } else if (action === "toggle-card") {
       const cardId = actionTarget.dataset.cardId;
       state.cardOpen[cardId] = state.cardOpen[cardId] === false;
@@ -1795,11 +2235,24 @@
     } else if (action === "editor-command") {
       event.preventDefault();
       runEditorCommand(actionTarget.dataset.command, actionTarget.dataset.value, '[data-editor="composer"]');
+    } else if (action === "insert-hashtag") {
+      event.preventDefault();
+      insertHashtag(actionTarget.dataset.tag);
+    } else if (action === "normalize-hashtags") {
+      event.preventDefault();
+      const editor = root.querySelector('[data-editor="composer"]');
+      const currentHtml = editor ? editor.innerHTML : state.composerHtml;
+      const nextHtml = decorateHashtags(currentHtml);
+      if (nextHtml === currentHtml) return;
+      state.composerHtml = nextHtml;
+      renderWithFocus('[data-editor="composer"]');
     } else if (action === "clear-composer") {
       state.composerHtml = "";
       state.hasDictated = false;
       state.listening = false;
       state.voiceWords = [];
+      state.savingStatus = "";
+      if (state.savingTimer) clearTimeout(state.savingTimer);
       clearDictationTimers();
       renderWithFocus('[data-editor="composer"]');
     } else if (action === "toggle-dictation") {
@@ -1862,17 +2315,17 @@
     } else if (action === "like-insight") {
       const id = actionTarget.dataset.insightId;
       state.insightFeedback[id] = { vote: "like", at: currentTime() };
-      if (state.insightDislikeTarget === id) {
-        state.insightDislikeTarget = null;
-        state.insightDislikeDraft = "";
-        state.insightFeedbackError = "";
-      }
+      state.actedInsights.add(id);
+      state.insightDislikeTarget = null;
+      state.insightDislikeDraft = "";
+      state.insightFeedbackError = "";
       renderApp();
-      pushToast("success", "Signal feedback saved", "Marked as useful.");
+      pushToast("success", "Signal feedback saved", "Marked useful and dismissed.");
     } else if (action === "dislike-insight") {
       const id = actionTarget.dataset.insightId;
+      delete state.insightFeedback[id];
       state.insightDislikeTarget = id;
-      state.insightDislikeDraft = state.insightFeedback[id]?.reason || "";
+      state.insightDislikeDraft = "";
       state.insightFeedbackError = "";
       renderWithFocus('[data-input="insight-dislike"]');
     } else if (action === "cancel-insight-dislike") {
@@ -1888,11 +2341,12 @@
         return;
       }
       state.insightFeedback[state.insightDislikeTarget] = { vote: "dislike", reason, at: currentTime() };
+      state.actedInsights.add(state.insightDislikeTarget);
       state.insightDislikeTarget = null;
       state.insightDislikeDraft = "";
       state.insightFeedbackError = "";
       renderApp();
-      pushToast("info", "Signal feedback saved", "Jarvis will use this context in future ranking.");
+      pushToast("info", "Signal feedback saved", "Marked not useful and dismissed.");
     } else if (action === "act-insight") {
       const id = actionTarget.dataset.insightId;
       state.actedInsights.add(id);
@@ -1957,8 +2411,14 @@
       renderWithFocus('[data-input="search"]');
     } else if (inputType === "ask") {
       state.askDraft = event.target.value;
+      event.target.style.height = "auto";
+      event.target.style.height = `${Math.min(116, event.target.scrollHeight)}px`;
       const sendButton = root.querySelector('[data-action="send-ask"]');
       if (sendButton) sendButton.disabled = !state.askDraft.trim();
+    } else if (inputType === "credit-filter") {
+      state.creditFilter = event.target.value;
+      state.creditPage = 0;
+      renderWithFocus('[data-input="credit-filter"]');
     } else if (inputType === "insight-dislike") {
       state.insightDislikeDraft = event.target.value;
       state.insightFeedbackError = "";
@@ -1968,10 +2428,11 @@
       state.composerHtml = event.target.innerHTML;
       state.savingStatus = "saving…";
       updateComposerControls();
+      updateComposerStatus();
       if (state.savingTimer) clearTimeout(state.savingTimer);
       state.savingTimer = window.setTimeout(() => {
         state.savingStatus = `saved ${currentTime()}`;
-        renderWithFocus('[data-editor="composer"]');
+        updateComposerStatus();
       }, 700);
     } else if (editorType === "modal") {
       state.focusHtml = event.target.innerHTML;
@@ -1990,6 +2451,9 @@
     if (event.target.dataset.input === "member-filter") {
       state.memberFilter = event.target.value;
       renderApp();
+    } else if (event.target.dataset.input === "docs-counterparty") {
+      state.docsCounterparty = event.target.value;
+      renderApp();
     } else if (event.target.dataset.input === "reduce-motion") {
       state.reduceMotion = event.target.checked;
       localStorage.setItem("jvReduceMotion", state.reduceMotion ? "1" : "0");
@@ -1998,7 +2462,17 @@
   });
 
   root.addEventListener("keydown", (event) => {
-    if (event.target.dataset.input === "ask" && event.key === "Enter") {
+    if (event.target.dataset.editor === "composer" && event.key === "Tab") {
+      event.preventDefault();
+      runEditorCommand("insertHTML", "&nbsp;&nbsp;", '[data-editor="composer"]');
+      return;
+    }
+    if (event.target.dataset.editor === "modal" && event.key === "Tab") {
+      event.preventDefault();
+      runEditorCommand("insertHTML", "&nbsp;&nbsp;", '[data-editor="modal"]');
+      return;
+    }
+    if (event.target.dataset.input === "ask" && event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       state.askDraft = event.target.value;
       askJarvis();
@@ -2022,11 +2496,11 @@
         renderApp();
       } else if (state.insightsOpen) {
         state.insightsOpen = false;
+        state.jarvisFullscreen = false;
         renderApp();
       } else {
         state.searchOpen = false;
-        state.coverageOpen = false;
-        state.plOpen = false;
+        closeTopPopovers();
         renderApp();
       }
     }
@@ -2037,14 +2511,15 @@
       const insideSearch = event.target.closest(".jv-search-wrap");
       const insideCoverage = event.target.closest(".jv-cov-wrap");
       const insidePL = event.target.closest(".jv-pl-chip-wrap");
+      const insideKpi = event.target.closest(".jv-kpi-wrap");
+      const insideJarvis = event.target.closest(".jv-insights-drawer") || event.target.closest(".jv-jarvis-fab");
       const insideMenu = event.target.closest(".jv-top-actions");
       const insideDev = event.target.closest(".jv-dev");
-      if (insideSearch || insideCoverage || insidePL || insideMenu || insideDev) return;
+      if (insideSearch || insideCoverage || insidePL || insideKpi || insideJarvis || insideMenu || insideDev) return;
     }
-    if (state.searchOpen || state.coverageOpen || state.plOpen || state.userMenuOpen) {
+    if (state.searchOpen || state.coverageOpen || state.plOpen || state.docsOpen || state.creditOpen || state.hrOpen || state.userMenuOpen) {
       state.searchOpen = false;
-      state.coverageOpen = false;
-      state.plOpen = false;
+      closeTopPopovers();
       state.userMenuOpen = false;
       renderApp();
     }
@@ -2054,19 +2529,22 @@
     const editor = root.querySelector('[data-editor="composer"]');
     const html = editor ? editor.innerHTML : state.composerHtml;
     if (!cleanText(html)) return;
+    const body = decorateHashtags(html);
 
     const target = data.notes[state.composerScope];
     target.unshift({
       id: `local-${Date.now()}`,
       author: "You",
       ts: currentTimestamp(),
-      body: html,
+      body,
     });
 
     state.notesTab = state.composerScope;
     state.composerHtml = "";
     state.hasDictated = false;
     state.listening = false;
+    state.savingStatus = "";
+    if (state.savingTimer) clearTimeout(state.savingTimer);
     clearDictationTimers();
     pushToast("success", "Note saved", `${state.composerScope === "personal" ? "Personal" : "Team"} note saved at ${currentTime()}`);
     renderApp();
