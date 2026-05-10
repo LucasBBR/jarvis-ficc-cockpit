@@ -2542,7 +2542,8 @@ button { font-family: inherit; }
 }
 .jv-insights-drawer .jv-ask-wrap.plain {
   flex: 1;
-  min-height: 420px;
+  min-height: 0;
+  overflow: hidden;
 }
 .jv-ask-stream {
   flex: 1;
