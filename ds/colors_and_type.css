@@ -1,0 +1,290 @@
+/* ============================================================================
+   BTG Pactual Enterprise Design System — Tokens
+   ----------------------------------------------------------------------------
+   All colors, type, spacing, radii and shadows live as CSS custom properties
+   so any prototype can `<link>` this file and inherit the system.
+   ----------------------------------------------------------------------------
+   ORDERING
+     1. Webfont declarations
+     2. Primitive scales (palette, type scale, space scale)
+     3. Semantic role tokens (text, surface, border, status, interactive)
+     4. Component tokens (buttons, tables, KPI cards)
+     5. Utility classes for type roles (.btg-h1, .btg-body, etc.)
+============================================================================ */
+
+/* ----------------------------- 1. WEBFONTS ------------------------------- */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('fonts/InterVariable.woff2') format('woff2-variations'), url('https://rsms.me/inter/font-files/InterVariable.woff2') format('woff2-variations');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('fonts/IBMPlexMono-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url('fonts/IBMPlexMono-Medium.woff2') format('woff2');
+}
+
+:root {
+
+  /* ----------------------- 2. PRIMITIVE PALETTE ------------------------- */
+
+  /* Navy — institutional anchor */
+  --navy-100: #000F33;
+  --navy-90:  #001745;
+  --navy-80:  #001E62;   /* Brand institutional navy */
+  --navy-70:  #002B7F;
+  --navy-60:  #00378E;
+
+  /* Blue — interactive / brand action */
+  --blue-100: #001E62;
+  --blue-90:  #002C8A;
+  --blue-80:  #003BB3;
+  --blue-70:  #0046B8;
+  --blue-60:  #0057D9;   /* Primary interactive */
+  --blue-50:  #2F7CFF;
+  --blue-40:  #6FA0FF;
+  --blue-30:  #A8C2FF;
+  --blue-20:  #D1DEFB;
+  --blue-10:  #EEF3FF;
+
+  /* Cool gray — text and structure */
+  --gray-100: #0D1B3E;
+  --gray-90:  #1F2740;
+  --gray-80:  #2B3350;
+  --gray-70:  #4A5168;
+  --gray-60:  #6B7388;
+  --gray-50:  #8C92A3;
+  --gray-40:  #B4B9C7;
+  --gray-30:  #D5D9E2;
+  --gray-20:  #E0E4EC;
+  --gray-15:  #ECEFF4;
+  --gray-10:  #F4F6FA;   /* Canvas background */
+  --gray-05:  #F9FAFC;
+  --white:    #FFFFFF;
+  --black:    #000000;
+
+  /* Green — gains / success */
+  --green-80: #044317;
+  --green-70: #0B6B2C;
+  --green-60: #0E7A36;
+  --green-50: #108548;
+  --green-40: #24A148;
+  --green-20: #DEF7E5;
+  --green-10: #EEFAF0;
+
+  /* Burgundy / red — losses / errors */
+  --red-80:   #520408;
+  --red-70:   #750E13;
+  --red-60:   #A2191F;
+  --red-50:   #DA1E28;
+  --red-40:   #FA4D56;
+  --red-20:   #FFD7D9;
+  --red-10:   #FFF1F1;
+
+  /* Amber — caution / pending */
+  --amber-70: #6D5800;
+  --amber-60: #8A6E00;
+  --amber-50: #B28600;
+  --amber-40: #F1C21B;
+  --amber-20: #FCF4D6;
+  --amber-10: #FFF8DC;
+
+  /* Chart categorical extension (use only beyond 5 series) */
+  --chart-1: var(--blue-60);
+  --chart-2: var(--navy-80);
+  --chart-3: #00A0B0;   /* teal */
+  --chart-4: #6929C4;   /* purple */
+  --chart-5: #B28600;   /* amber */
+  --chart-6: #A2191F;   /* burgundy */
+  --chart-7: #007D79;
+  --chart-8: #520408;
+
+  /* ------------------------- 3. SEMANTIC ROLES -------------------------- */
+
+  /* Surface */
+  --surface-canvas:        var(--gray-10);
+  --surface-default:       var(--white);
+  --surface-raised:        var(--white);
+  --surface-sunken:        var(--gray-15);
+  --surface-inverse:       var(--navy-80);
+  --surface-brand:         var(--navy-80);
+  --surface-brand-strong:  var(--navy-100);
+  --surface-overlay:       rgba(0, 30, 98, 0.55);
+
+  /* Text */
+  --text-primary:          var(--gray-100);
+  --text-secondary:        var(--gray-70);
+  --text-tertiary:         var(--gray-60);
+  --text-placeholder:      var(--gray-50);
+  --text-disabled:         var(--gray-40);
+  --text-inverse:          var(--white);
+  --text-on-brand:         var(--white);
+  --text-link:             var(--blue-70);
+  --text-link-hover:       var(--blue-80);
+  --text-error:            var(--red-60);
+  --text-success:          var(--green-50);
+  --text-warning:          var(--amber-60);
+
+  /* Numeric — financial */
+  --num-positive:          var(--green-50);
+  --num-negative:          var(--red-60);
+  --num-neutral:           var(--gray-100);
+
+  /* Border */
+  --border-subtle:         var(--gray-20);
+  --border-default:        var(--gray-30);
+  --border-strong:         var(--gray-50);
+  --border-interactive:    var(--blue-60);
+  --border-inverse:        var(--gray-100);
+  --border-error:          var(--red-60);
+
+  /* Interactive */
+  --interactive:           var(--blue-60);
+  --interactive-hover:     var(--blue-70);
+  --interactive-active:    var(--blue-80);
+  --interactive-subtle:    var(--blue-10);
+  --focus-ring:            var(--blue-60);
+
+  /* Status */
+  --status-success-bg:     var(--green-20);
+  --status-success-fg:     var(--green-70);
+  --status-error-bg:       var(--red-20);
+  --status-error-fg:       var(--red-70);
+  --status-warning-bg:     var(--amber-20);
+  --status-warning-fg:     var(--amber-70);
+  --status-info-bg:        var(--blue-20);
+  --status-info-fg:        var(--blue-80);
+  --status-neutral-bg:     var(--gray-20);
+  --status-neutral-fg:     var(--gray-80);
+
+  /* Hover overlays (apply over any surface) */
+  --hover-row:             rgba(13, 27, 62, 0.04);
+  --hover-strong:          rgba(13, 27, 62, 0.08);
+  --press:                 rgba(13, 27, 62, 0.12);
+
+  /* ---------------------------- TYPOGRAPHY ------------------------------ */
+
+  --font-sans:  'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono:  'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --font-display: var(--font-sans);   /* same family, used at light weights */
+
+  /* Weights */
+  --fw-light:    300;
+  --fw-regular:  400;
+  --fw-medium:   500;
+  --fw-semibold: 600;
+  --fw-bold:     700;
+
+  /* Type scale (8pt-rooted, productivity-first) */
+  --fs-12: 0.75rem;     /* 12px — caption, eyebrow, table dense */
+  --fs-13: 0.8125rem;   /* 13px — table cells, helper, chip */
+  --fs-14: 0.875rem;    /* 14px — body default, buttons */
+  --fs-16: 1rem;        /* 16px — body large, modal body */
+  --fs-18: 1.125rem;    /* 18px — section title */
+  --fs-20: 1.25rem;     /* 20px — h3, KPI label-bigger */
+  --fs-24: 1.5rem;      /* 24px — h2, KPI value */
+  --fs-28: 1.75rem;     /* 28px — h1 productivity */
+  --fs-32: 2rem;        /* 32px — KPI value xl */
+  --fs-40: 2.5rem;      /* 40px — display-1 */
+  --fs-54: 3.375rem;    /* 54px — hero / cover */
+
+  /* Semantic type roles (used by .btg-* utility classes) */
+  --type-display-1:    var(--fw-light)   var(--fs-54)/1.05  var(--font-display);
+  --type-display-2:    var(--fw-light)   var(--fs-40)/1.10  var(--font-display);
+  --type-h1:           var(--fw-semibold) var(--fs-28)/1.20 var(--font-sans);
+  --type-h2:           var(--fw-semibold) var(--fs-24)/1.25 var(--font-sans);
+  --type-h3:           var(--fw-semibold) var(--fs-20)/1.30 var(--font-sans);
+  --type-h4:           var(--fw-semibold) var(--fs-16)/1.35 var(--font-sans);
+  --type-body:         var(--fw-regular) var(--fs-14)/1.45 var(--font-sans);
+  --type-body-lg:      var(--fw-regular) var(--fs-16)/1.50 var(--font-sans);
+  --type-body-sm:      var(--fw-regular) var(--fs-13)/1.45 var(--font-sans);
+  --type-caption:      var(--fw-regular) var(--fs-12)/1.35 var(--font-sans);
+  --type-eyebrow:      var(--fw-medium)  var(--fs-12)/1.20 var(--font-sans);
+  --type-label:        var(--fw-medium)  var(--fs-12)/1.30 var(--font-sans);
+  --type-button:       var(--fw-medium)  var(--fs-14)/1.20 var(--font-sans);
+  --type-table-header: var(--fw-medium)  var(--fs-12)/1.20 var(--font-sans);
+  --type-table-cell:   var(--fw-regular) var(--fs-13)/1.35 var(--font-sans);
+  --type-numeric:      var(--fw-regular) var(--fs-13)/1.35 var(--font-mono);
+  --type-numeric-lg:   var(--fw-semibold) var(--fs-24)/1.20 var(--font-mono);
+
+  /* Letter-spacing */
+  --tracking-eyebrow:  0.08em;
+  --tracking-tight:    -0.01em;
+  --tracking-normal:   0;
+
+  /* ----------------------------- SPACING -------------------------------- */
+  --space-01:  2px;
+  --space-02:  4px;
+  --space-03:  8px;
+  --space-04:  12px;
+  --space-05:  16px;
+  --space-06:  24px;
+  --space-07:  32px;
+  --space-08:  40px;
+  --space-09:  48px;
+  --space-10:  64px;
+  --space-11:  80px;
+  --space-12:  96px;
+  --space-13:  160px;
+
+  /* Row densities */
+  --row-dense:    32px;
+  --row-default:  40px;
+  --row-comfy:    48px;
+
+  /* ----------------------- RADII / SHADOW / Z --------------------------- */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(13, 27, 62, 0.06), 0 0 0 1px rgba(13, 27, 62, 0.04);
+  --shadow-md: 0 8px 24px rgba(13, 27, 62, 0.10), 0 2px 4px rgba(13, 27, 62, 0.06);
+  --shadow-ai: inset 0 0 0 1px var(--blue-30), 0 8px 24px rgba(0, 87, 217, 0.08);
+
+  --z-base:    0;
+  --z-sticky:  10;
+  --z-overlay: 100;
+  --z-modal:   1000;
+  --z-toast:   2000;
+
+  /* ---------------------------- MOTION ---------------------------------- */
+  --ease-productive: cubic-bezier(0.2, 0, 0.38, 0.9);
+  --ease-expressive: cubic-bezier(0.4, 0.14, 0.3, 1);
+  --dur-fast:    70ms;
+  --dur-base:    110ms;
+  --dur-slow:    240ms;
+}
+
+/* ===================== 4. UTILITY TYPE CLASSES ============================ */
+
+.btg-display-1   { font: var(--type-display-1);   letter-spacing: var(--tracking-tight); color: var(--text-primary); }
+.btg-display-2   { font: var(--type-display-2);   letter-spacing: var(--tracking-tight); color: var(--text-primary); }
+.btg-h1          { font: var(--type-h1);          color: var(--text-primary); }
+.btg-h2          { font: var(--type-h2);          color: var(--text-primary); }
+.btg-h3          { font: var(--type-h3);          color: var(--text-primary); }
+.btg-h4          { font: var(--type-h4);          color: var(--text-primary); }
+.btg-body        { font: var(--type-body);        color: var(--text-primary); }
+.btg-body-lg     { font: var(--type-body-lg);     color: var(--text-primary); }
+.btg-body-sm     { font: var(--type-body-sm);     color: var(--text-secondary); }
+.btg-caption     { font: var(--type-caption);     color: var(--text-secondary); }
+.btg-eyebrow     { font: var(--type-eyebrow);     color: var(--text-secondary); text-transform: uppercase; letter-spacing: var(--tracking-eyebrow); }
+.btg-label       { font: var(--type-label);       color: var(--text-secondary); }
+.btg-numeric     { font: var(--type-numeric);     color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.btg-numeric-lg  { font: var(--type-numeric-lg);  color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+/* Body baseline + tabular-num helpers */
+html, body { background: var(--surface-canvas); color: var(--text-primary); font: var(--type-body); }
+.tnum, table { font-variant-numeric: tabular-nums; }
