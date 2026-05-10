@@ -33,6 +33,10 @@
     voiceWords: [],
     actedInsights: new Set(),
     arrivedInsights: new Set(),
+    insightFeedback: {},
+    insightDislikeTarget: null,
+    insightDislikeDraft: "",
+    insightFeedbackError: "",
     deletedNoteUndo: null,
     cardOpen: { notes: true, docs: true, hr: true, book: true },
     notesTab: "team",
@@ -70,6 +74,8 @@
     ticket: '<path d="M4 7a2 2 0 0 1 2-2h12v4a2 2 0 0 0 0 4v4H6a2 2 0 0 1-2-2v-4a2 2 0 0 0 0-4z"/><path d="M9 9h5M9 13h6"/>',
     filter: '<path d="M4 6h16M7 12h10M10 18h4"/>',
     pin: '<path d="M14 4l6 6-4 1-4 7-2-2 7-4 1-4-6-6z"/><path d="M9 15l-5 5"/>',
+    thumbUp: '<path d="M7 10v11H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3z"/><path d="M7 10l4-7a2 2 0 0 1 3.7 1.2L14 8h5a2 2 0 0 1 2 2.3l-1.2 8A3 3 0 0 1 16.8 21H7"/>',
+    thumbDown: '<path d="M7 14V3H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3z"/><path d="M7 14l4 7a2 2 0 0 0 3.7-1.2L14 16h5a2 2 0 0 0 2-2.3l-1.2-8A3 3 0 0 0 16.8 3H7"/>',
     bell: '<path d="M6 8a6 6 0 1 1 12 0v5l2 3H4l2-3z"/><path d="M10 19a2 2 0 0 0 4 0"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 13.5a7.5 7.5 0 0 0 0-3l1.7-1.3-1.7-3-2 .8a7.5 7.5 0 0 0-2.6-1.5L14.5 3h-3l-.3 1.5a7.5 7.5 0 0 0-2.6 1.5l-2-.8-1.7 3 1.7 1.3a7.5 7.5 0 0 0 0 3l-1.7 1.3 1.7 3 2-.8a7.5 7.5 0 0 0 2.6 1.5L11.5 21h3l.3-1.5a7.5 7.5 0 0 0 2.6-1.5l2 .8 1.7-3-1.7-1.3z"/>',
     grid: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>',
@@ -375,9 +381,13 @@
 
   function renderInsightsSkeleton() {
     return `
-      <div class="jv-signal-grid">
-        <div class="jv-signal-card next skeleton-card">${skeleton("62%", 22)}${skeleton("84%", 12)}${skeleton("70%", 10)}</div>
-        ${Array.from({ length: 4 }).map(() => `<div class="jv-signal-card skeleton-card">${skeleton("42%", 18)}${skeleton("82%", 11)}${skeleton("64%", 10)}</div>`).join("")}
+      <div class="jv-signal-stage">
+        <div class="jv-signal-scroller">
+          <div class="jv-signal-grid">
+            <div class="jv-signal-card next skeleton-card">${skeleton("62%", 22)}${skeleton("84%", 12)}${skeleton("70%", 10)}</div>
+            ${Array.from({ length: 4 }).map(() => `<div class="jv-signal-card skeleton-card">${skeleton("42%", 18)}${skeleton("82%", 11)}${skeleton("64%", 10)}</div>`).join("")}
+          </div>
+        </div>
       </div>
     `;
   }
@@ -768,8 +778,13 @@
             <button class="jv-icon-mini" data-action="close-insights" title="Collapse signals">${icon("close", 16)}</button>
           </header>
           ${panelError("insights") ? renderPanelError("insights", "Couldn't refresh Jarvis signals.", "Background scan feed unavailable.") : isLoading("insights") ? renderInsightsSkeleton() : visibleInsights.length ? `
-            <div class="jv-signal-grid">
-              ${visibleInsights.map(renderInsight).join("")}
+            <div class="jv-signal-stage">
+              <div class="jv-signal-scroller">
+                <div class="jv-signal-grid">
+                  ${visibleInsights.map(renderInsight).join("")}
+                </div>
+              </div>
+              ${renderInsightDislikeForm()}
             </div>
           ` : renderEmptyState("info", "No insights", "Jarvis hasn't flagged anything new. Background scan running.")}
           <div class="jv-ask-wrap">
@@ -807,13 +822,20 @@
     const id = insightId(insight, index);
     const pending = state.pendingConfirm === `dismiss-insight:${id}`;
     const arrived = state.arrivedInsights.has(id);
+    const feedback = state.insightFeedback[id];
+    const dislikeActive = state.insightDislikeTarget === id;
     const heatColor = insight.heat >= 82 ? "var(--blue-60)" : insight.heat >= 58 ? "var(--blue-40)" : insight.heat >= 32 ? "#8aa4cf" : "var(--gray-50)";
     const heatBg = insight.heat >= 82 ? "rgba(0,87,217,.10)" : insight.heat >= 58 ? "rgba(111,160,255,.12)" : insight.heat >= 32 ? "rgba(138,164,207,.12)" : "rgba(140,146,163,.10)";
     return `
-      <div class="jv-insight jv-signal-card ${index === 0 ? "next" : ""} ${arrived ? "arrived" : ""}" style="--heat-color:${heatColor};--heat-bg:${heatBg};--heat:${insight.heat}%">
+      <div class="jv-insight jv-signal-card ${index === 0 ? "next" : ""} ${arrived ? "arrived" : ""} ${dislikeActive ? "feedback-open" : ""}" style="--heat-color:${heatColor};--heat-bg:${heatBg};--heat:${insight.heat}%">
         <div class="kpi">${escapeHtml(insight.kpi)}</div>
         <div class="label">${escapeHtml(insight.label)}</div>
         <div class="detail">${escapeHtml(insight.detail)}</div>
+        <div class="jv-feedback-row" aria-label="Insight feedback">
+          <button class="jv-feedback-btn ${feedback?.vote === "like" ? "active" : ""}" data-action="like-insight" data-insight-id="${escapeHtml(id)}" title="Useful insight" aria-label="Mark insight useful">${icon("thumbUp", 12)}</button>
+          <button class="jv-feedback-btn ${feedback?.vote === "dislike" ? "active dislike" : dislikeActive ? "dislike pending" : ""}" data-action="dislike-insight" data-insight-id="${escapeHtml(id)}" data-insight-label="${escapeHtml(insight.label)}" title="Not useful" aria-label="Explain why this insight is not useful">${icon("thumbDown", 12)}</button>
+          ${feedback ? `<span class="jv-feedback-status">${feedback.vote === "like" ? "Useful" : "Sent"}</span>` : ""}
+        </div>
         <div class="jv-insight-actions">
           ${pending ? `
             <span>Confirm?</span>
@@ -825,6 +847,25 @@
           `}
         </div>
       </div>
+    `;
+  }
+
+  function renderInsightDislikeForm() {
+    if (!state.insightDislikeTarget) return "";
+    const insight = data.nba.insights.find((candidate) => insightId(candidate) === state.insightDislikeTarget);
+    return `
+      <form class="jv-signal-feedback-form" data-form="insight-feedback">
+        <div>
+          <div class="label">Why was this not useful?</div>
+          <div class="target">${escapeHtml(insight?.label || "Selected signal")}</div>
+        </div>
+        <textarea data-input="insight-dislike" rows="2" placeholder="Missing context, wrong timing, already known, or not actionable...">${escapeHtml(state.insightDislikeDraft)}</textarea>
+        <div class="foot">
+          ${state.insightFeedbackError ? `<span class="err">${escapeHtml(state.insightFeedbackError)}</span>` : "<span></span>"}
+          <button type="button" class="jv-btn ghost sm" data-action="cancel-insight-dislike">Cancel</button>
+          <button type="button" class="jv-btn primary sm" data-action="submit-insight-dislike" ${state.insightDislikeDraft.trim() ? "" : "disabled"}>Send</button>
+        </div>
+      </form>
     `;
   }
 
@@ -1818,6 +1859,40 @@
       askJarvis(actionTarget.dataset.query);
     } else if (action === "send-ask") {
       askJarvis();
+    } else if (action === "like-insight") {
+      const id = actionTarget.dataset.insightId;
+      state.insightFeedback[id] = { vote: "like", at: currentTime() };
+      if (state.insightDislikeTarget === id) {
+        state.insightDislikeTarget = null;
+        state.insightDislikeDraft = "";
+        state.insightFeedbackError = "";
+      }
+      renderApp();
+      pushToast("success", "Signal feedback saved", "Marked as useful.");
+    } else if (action === "dislike-insight") {
+      const id = actionTarget.dataset.insightId;
+      state.insightDislikeTarget = id;
+      state.insightDislikeDraft = state.insightFeedback[id]?.reason || "";
+      state.insightFeedbackError = "";
+      renderWithFocus('[data-input="insight-dislike"]');
+    } else if (action === "cancel-insight-dislike") {
+      state.insightDislikeTarget = null;
+      state.insightDislikeDraft = "";
+      state.insightFeedbackError = "";
+      renderApp();
+    } else if (action === "submit-insight-dislike") {
+      const reason = state.insightDislikeDraft.trim();
+      if (!reason) {
+        state.insightFeedbackError = "Type a reason before sending.";
+        renderWithFocus('[data-input="insight-dislike"]');
+        return;
+      }
+      state.insightFeedback[state.insightDislikeTarget] = { vote: "dislike", reason, at: currentTime() };
+      state.insightDislikeTarget = null;
+      state.insightDislikeDraft = "";
+      state.insightFeedbackError = "";
+      renderApp();
+      pushToast("info", "Signal feedback saved", "Jarvis will use this context in future ranking.");
     } else if (action === "act-insight") {
       const id = actionTarget.dataset.insightId;
       state.actedInsights.add(id);
@@ -1884,6 +1959,11 @@
       state.askDraft = event.target.value;
       const sendButton = root.querySelector('[data-action="send-ask"]');
       if (sendButton) sendButton.disabled = !state.askDraft.trim();
+    } else if (inputType === "insight-dislike") {
+      state.insightDislikeDraft = event.target.value;
+      state.insightFeedbackError = "";
+      const sendButton = root.querySelector('[data-action="submit-insight-dislike"]');
+      if (sendButton) sendButton.disabled = !state.insightDislikeDraft.trim();
     } else if (editorType === "composer") {
       state.composerHtml = event.target.innerHTML;
       state.savingStatus = "saving…";
