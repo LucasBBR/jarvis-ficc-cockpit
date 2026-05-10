@@ -2113,7 +2113,7 @@
     state.composerHtml = editor.innerHTML;
     _tagSuggestLocked = true;
     hideTagSuggest();
-    setTimeout(() => { _tagSuggestLocked = false; }, 250);
+    setTimeout(() => { _tagSuggestLocked = false; }, 500);
     updateComposerControls();
   }
 
@@ -2488,34 +2488,9 @@
         state.savingStatus = `saved ${currentTime()}`;
         updateComposerStatus();
       }, 700);
-      // Inline hashtag suggestion
-      const editor = event.target;
-      const sel = window.getSelection();
-      if (sel && sel.rangeCount) {
-        const range = sel.getRangeAt(0);
-        const node = range.startContainer;
-        if (node.nodeType === Node.TEXT_NODE && editor.contains(node)) {
-          const text = node.textContent.slice(0, range.startOffset);
-          const match = text.match(/(^|[\s])(#[A-Za-z0-9_-]+)$/);
-          if (match && match[2].length > 1) {
-            showTagSuggest(match[2], editor);
-          } else {
-            hideTagSuggest();
-          }
-        } else {
-          hideTagSuggest();
-        }
-      }
     } else if (editorType === "modal") {
       state.focusHtml = event.target.innerHTML;
       event.target.dataset.empty = cleanText(event.target.innerHTML) ? "false" : "true";
-    }
-  });
-
-  root.addEventListener("focusout", (event) => {
-    if (event.target.dataset.editor === "composer") {
-      // Delay so touchend/mousedown on the pill fires before blur hides it
-      setTimeout(hideTagSuggest, 150);
     }
   });
 
@@ -2565,6 +2540,27 @@
       askJarvis();
     }
   });
+
+  function checkTagSuggest() {
+    if (_tagSuggestLocked) return;
+    const editor = root.querySelector('[data-editor="composer"]');
+    if (!editor) { hideTagSuggest(); return; }
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) { hideTagSuggest(); return; }
+    const range = sel.getRangeAt(0);
+    if (!editor.contains(range.startContainer)) { hideTagSuggest(); return; }
+    const node = range.startContainer;
+    if (node.nodeType !== Node.TEXT_NODE) { hideTagSuggest(); return; }
+    const text = node.textContent.slice(0, range.startOffset);
+    const match = text.match(/(^|[\s])(#[A-Za-z0-9_-]+)$/);
+    if (match && match[2].length > 1) {
+      showTagSuggest(match[2], editor);
+    } else {
+      hideTagSuggest();
+    }
+  }
+
+  document.addEventListener("selectionchange", checkTagSuggest);
 
   document.addEventListener("keydown", (event) => {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
