@@ -640,7 +640,6 @@
           </div>
           <div>
             <div class="jv-brand-name">${state.clientSelected ? escapeHtml(data.client.group) : "No client selected"}</div>
-            <div class="jv-top-client">Jarvis / FICC Cockpit</div>
           </div>
         </div>
         <div class="jv-search-wrap">
@@ -1097,7 +1096,6 @@
           <header class="jv-insights-head">
             ${jarvisLogo(state.thinking ? "thinking" : "idle", 42)}
             <div>
-              <div class="eyebrow">Jarvis</div>
               <div class="summary">
                 ${visibleInsights.length ? `<button class="jv-insights-head-toggle" data-action="toggle-jarvis-signals">
                   <span>${signalToggleLabel}</span>
@@ -1223,11 +1221,6 @@
               </span>
             </div>
           ` : ""}
-        </div>
-        <div class="jv-ask-suggested">
-          ${data.nba.suggestedQueries.map((query) => `
-            <button class="jv-ask-chip" data-action="ask-suggested" data-query="${escapeHtml(query)}">${escapeHtml(query)}</button>
-          `).join("")}
         </div>
         <div class="jv-ask-input">
           ${jarvisLogo(state.thinking ? "thinking" : "idle", 20)}

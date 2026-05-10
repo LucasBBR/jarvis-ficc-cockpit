@@ -2503,7 +2503,7 @@ button { font-family: inherit; }
   min-height: 42px;
   padding: 7px 2px;
   color: var(--blue-70);
-  font: 800 11px/1 var(--font-sans);
+  font: 400 11px/1 var(--font-sans);
 }
 .jv-ask-thinking .jarvis-logo {
   filter: drop-shadow(0 0 10px rgba(0,87,217,.24));
@@ -2736,7 +2736,6 @@ button { font-family: inherit; }
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 4px;
   font-family: var(--font-sans);
 }
 .jv-insights-head-toggle {
@@ -2785,7 +2784,7 @@ button { font-family: inherit; }
   width: min(100%, 760px);
   height: auto;
   min-height: 48px;
-  align-items: flex-end;
+  align-items: center;
   gap: 10px;
   margin: 10px auto 0;
   padding: 8px 9px 8px 14px;
