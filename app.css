@@ -2899,27 +2899,29 @@ button { font-family: inherit; }
 /* Inline hashtag suggestion pill */
 .jv-tag-suggest {
   z-index: 9999;
-  padding: 6px 12px;
-  min-height: 34px;
-  background: var(--blue-60);
-  color: #fff;
-  border: none;
-  border-radius: 20px;
-  font: 600 12px/1 var(--font-sans);
-  letter-spacing: .01em;
+  padding: 5px 8px 5px 10px;
+  min-height: 30px;
+  background: #f1f2f4;
+  color: var(--text-primary);
+  border: 1px solid rgba(0,0,0,.10);
+  border-radius: 8px;
+  font: 500 12px/1 var(--font-sans);
   cursor: pointer;
-  box-shadow: 0 2px 10px rgba(0,87,217,.25);
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
   white-space: nowrap;
   user-select: none;
   -webkit-user-select: none;
-  transition: opacity 120ms, transform 120ms;
-  display: flex;
+  transition: opacity 100ms, transform 100ms;
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
 }
-.jv-tag-suggest::before {
-  content: "→ tag";
-  font: 400 10px/1 var(--font-sans);
-  opacity: .75;
+.jv-tag-suggest::after {
+  content: "⇥";
+  font: 500 11px/1 var(--font-mono, monospace);
+  padding: 2px 5px;
+  background: rgba(0,0,0,.08);
+  border-radius: 4px;
+  color: var(--text-secondary, #666);
 }
-.jv-tag-suggest:active { opacity: .8; transform: scale(.97); }
+.jv-tag-suggest:active { opacity: .75; transform: scale(.97); }

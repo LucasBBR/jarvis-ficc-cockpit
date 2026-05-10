@@ -2049,7 +2049,10 @@
     return el;
   }
 
+  let _tagSuggestLocked = false;
+
   function showTagSuggest(word, editor) {
+    if (_tagSuggestLocked) return;
     const el = getTagSuggestEl();
     el.textContent = word;
     el.hidden = false;
@@ -2100,6 +2103,7 @@
     if (before) parent.insertBefore(document.createTextNode(before), node);
     parent.insertBefore(span, node);
     parent.insertBefore(space, node);
+    if (after) parent.insertBefore(document.createTextNode(after), node);
     parent.removeChild(node);
     const newRange = document.createRange();
     newRange.setStart(space, 1);
@@ -2107,7 +2111,9 @@
     sel.removeAllRanges();
     sel.addRange(newRange);
     state.composerHtml = editor.innerHTML;
+    _tagSuggestLocked = true;
     hideTagSuggest();
+    setTimeout(() => { _tagSuggestLocked = false; }, 250);
     updateComposerControls();
   }
 
@@ -2540,7 +2546,12 @@
     }
     if (event.target.dataset.editor === "composer" && event.key === "Tab") {
       event.preventDefault();
-      runEditorCommand("insertHTML", "&nbsp;&nbsp;", '[data-editor="composer"]');
+      const suggestEl = root.querySelector(".jv-tag-suggest");
+      if (suggestEl && !suggestEl.hidden) {
+        commitTagFromSuggest(event.target);
+      } else {
+        runEditorCommand("insertHTML", "&nbsp;&nbsp;", '[data-editor="composer"]');
+      }
       return;
     }
     if (event.target.dataset.editor === "modal" && event.key === "Tab") {
