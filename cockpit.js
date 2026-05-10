@@ -1148,7 +1148,6 @@
 
   function renderInsight(insight, index = 0) {
     const id = insightId(insight, index);
-    const pending = state.pendingConfirm === `dismiss-insight:${id}`;
     const arrived = state.arrivedInsights.has(id);
     const feedback = state.insightFeedback[id];
     const dislikeActive = state.insightDislikeTarget === id;
@@ -1160,19 +1159,9 @@
         <div class="label">${escapeHtml(insight.label)}</div>
         <div class="detail">${escapeHtml(insight.detail)}</div>
         <div class="jv-feedback-row" aria-label="Insight feedback">
-          <button class="jv-feedback-btn ${feedback?.vote === "like" ? "active" : ""}" data-action="like-insight" data-insight-id="${escapeHtml(id)}" title="Useful insight" aria-label="Mark insight useful">${icon("thumbUp", 12)}</button>
-          <button class="jv-feedback-btn ${feedback?.vote === "dislike" ? "active dislike" : dislikeActive ? "dislike pending" : ""}" data-action="dislike-insight" data-insight-id="${escapeHtml(id)}" data-insight-label="${escapeHtml(insight.label)}" title="Not useful" aria-label="Explain why this insight is not useful">${icon("thumbDown", 12)}</button>
+          <button class="jv-feedback-btn ${feedback?.vote === "like" ? "active" : ""}" data-action="like-insight" data-insight-id="${escapeHtml(id)}" title="Useful — dismiss" aria-label="Mark insight useful and dismiss">${icon("thumbUp", 12)}</button>
+          <button class="jv-feedback-btn ${feedback?.vote === "dislike" ? "active dislike" : dislikeActive ? "dislike pending" : ""}" data-action="dislike-insight" data-insight-id="${escapeHtml(id)}" data-insight-label="${escapeHtml(insight.label)}" title="Not useful — send feedback" aria-label="Explain why this insight is not useful">${icon("thumbDown", 12)}</button>
           ${feedback ? `<span class="jv-feedback-status">${feedback.vote === "like" ? "Useful" : "Sent"}</span>` : ""}
-        </div>
-        <div class="jv-insight-actions">
-          ${pending ? `
-            <span>Confirm?</span>
-            <button data-action="confirm-dismiss-insight" data-insight-id="${escapeHtml(id)}">Yes</button>
-            <button data-action="cancel-confirm">Cancel</button>
-          ` : `
-            <button data-action="act-insight" data-insight-id="${escapeHtml(id)}">${index === 0 ? "Open ticket" : "Act"}</button>
-            <button data-action="dismiss-insight" data-insight-id="${escapeHtml(id)}" title="Dismiss">${icon("close", 11)}</button>
-          `}
         </div>
       </div>
     `;
@@ -1305,11 +1294,6 @@
           <div class="jv-mc-status" data-region="composer-status">${renderComposerStatus()}</div>
         </div>
         <div class="jv-rich-area" contenteditable="true" data-editor="composer" data-empty="${composerHasContent ? "false" : "true"}" data-placeholder="${state.composerScope === "personal" ? "Write a personal note — or tap the mic to dictate. Use # for tags." : "Write a team note (visible to FICC desk) — or tap the mic to dictate."}" style="min-height: 66px">${state.composerHtml}</div>
-        <div class="jv-tag-shelf" aria-label="Quick note tags">
-          <span>Tags</span>
-          ${["hedge-discussion", "credit-review", "follow-up", "voice-note"].map((tag) => `<button data-action="insert-hashtag" data-tag="${escapeHtml(tag)}" title="Insert hashtag tag">#${escapeHtml(tag)}</button>`).join("")}
-          <button class="convert" data-action="normalize-hashtags" title="Convert typed hashtags into tag pills">Convert typed #tags</button>
-        </div>
         <div class="jv-mc-toolbar">
           ${renderEditorButton("bold", "B")}
           ${renderEditorButton("italic", "I")}
@@ -2043,6 +2027,90 @@
     if (status) status.innerHTML = renderComposerStatus();
   }
 
+  function getTagSuggestEl() {
+    let el = root.querySelector(".jv-tag-suggest");
+    if (!el) {
+      el = document.createElement("button");
+      el.className = "jv-tag-suggest";
+      el.type = "button";
+      el.hidden = true;
+      el.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        const editor = root.querySelector('[data-editor="composer"]');
+        if (editor) commitTagFromSuggest(editor);
+      });
+      el.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        const editor = root.querySelector('[data-editor="composer"]');
+        if (editor) commitTagFromSuggest(editor);
+      });
+      root.appendChild(el);
+    }
+    return el;
+  }
+
+  function showTagSuggest(word, editor) {
+    const el = getTagSuggestEl();
+    el.textContent = word;
+    el.hidden = false;
+    try {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount) {
+        const r = sel.getRangeAt(0).cloneRange();
+        r.collapse(true);
+        const rect = r.getBoundingClientRect();
+        if (rect.top || rect.left) {
+          el.style.position = "fixed";
+          el.style.top = `${rect.bottom + 6}px`;
+          el.style.left = `${Math.max(8, rect.left)}px`;
+          return;
+        }
+      }
+    } catch (_) {}
+    const editorRect = editor.getBoundingClientRect();
+    el.style.position = "fixed";
+    el.style.top = `${editorRect.bottom + 6}px`;
+    el.style.left = `${editorRect.left + 8}px`;
+  }
+
+  function hideTagSuggest() {
+    const el = root.querySelector(".jv-tag-suggest");
+    if (el) el.hidden = true;
+  }
+
+  function commitTagFromSuggest(editor) {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) { hideTagSuggest(); return; }
+    const range = sel.getRangeAt(0);
+    if (!editor.contains(range.startContainer)) { hideTagSuggest(); return; }
+    const node = range.startContainer;
+    if (node.nodeType !== Node.TEXT_NODE) { hideTagSuggest(); return; }
+    const text = node.textContent.slice(0, range.startOffset);
+    const match = text.match(/(^|[\s])(#[A-Za-z0-9_-]+)$/);
+    if (!match) { hideTagSuggest(); return; }
+    const word = match[2];
+    const startOffset = text.lastIndexOf(word);
+    const before = node.textContent.slice(0, startOffset);
+    const after = node.textContent.slice(startOffset + word.length);
+    const span = document.createElement("span");
+    span.className = "jv-htag";
+    span.textContent = word;
+    const space = document.createTextNode(" ");
+    const parent = node.parentNode;
+    if (before) parent.insertBefore(document.createTextNode(before), node);
+    parent.insertBefore(span, node);
+    parent.insertBefore(space, node);
+    parent.removeChild(node);
+    const newRange = document.createRange();
+    newRange.setStart(space, 1);
+    newRange.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+    state.composerHtml = editor.innerHTML;
+    hideTagSuggest();
+    updateComposerControls();
+  }
+
   function insertHashtag(tagValue) {
     const editor = root.querySelector('[data-editor="composer"]');
     if (!editor) return;
@@ -2340,19 +2408,6 @@
       state.insightFeedbackError = "";
       renderApp();
       pushToast("info", "Signal feedback saved", "Marked not useful and dismissed.");
-    } else if (action === "act-insight") {
-      const id = actionTarget.dataset.insightId;
-      state.actedInsights.add(id);
-      renderApp();
-      pushToast("success", "Insight acted", "Signal collapsed out of the rail.");
-    } else if (action === "dismiss-insight") {
-      state.pendingConfirm = `dismiss-insight:${actionTarget.dataset.insightId}`;
-      renderApp();
-    } else if (action === "confirm-dismiss-insight") {
-      state.actedInsights.add(actionTarget.dataset.insightId);
-      state.pendingConfirm = null;
-      renderApp();
-      pushToast("info", "Insight dismissed", "Jarvis will keep scanning in the background.");
     } else if (action === "retry-panel") {
       retryPanel(actionTarget.dataset.panel);
     } else if (action === "dismiss-toast") {
@@ -2427,9 +2482,34 @@
         state.savingStatus = `saved ${currentTime()}`;
         updateComposerStatus();
       }, 700);
+      // Inline hashtag suggestion
+      const editor = event.target;
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount) {
+        const range = sel.getRangeAt(0);
+        const node = range.startContainer;
+        if (node.nodeType === Node.TEXT_NODE && editor.contains(node)) {
+          const text = node.textContent.slice(0, range.startOffset);
+          const match = text.match(/(^|[\s])(#[A-Za-z0-9_-]+)$/);
+          if (match && match[2].length > 1) {
+            showTagSuggest(match[2], editor);
+          } else {
+            hideTagSuggest();
+          }
+        } else {
+          hideTagSuggest();
+        }
+      }
     } else if (editorType === "modal") {
       state.focusHtml = event.target.innerHTML;
       event.target.dataset.empty = cleanText(event.target.innerHTML) ? "false" : "true";
+    }
+  });
+
+  root.addEventListener("focusout", (event) => {
+    if (event.target.dataset.editor === "composer") {
+      // Delay so touchend/mousedown on the pill fires before blur hides it
+      setTimeout(hideTagSuggest, 150);
     }
   });
 
@@ -2455,6 +2535,9 @@
   });
 
   root.addEventListener("keydown", (event) => {
+    if (event.target.dataset.editor === "composer" && (event.key === "Enter" || event.key === " " || event.key === "Escape")) {
+      hideTagSuggest();
+    }
     if (event.target.dataset.editor === "composer" && event.key === "Tab") {
       event.preventDefault();
       runEditorCommand("insertHTML", "&nbsp;&nbsp;", '[data-editor="composer"]');
