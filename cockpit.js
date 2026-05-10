@@ -2551,6 +2551,7 @@
     if (!editor.contains(range.startContainer)) { hideTagSuggest(); return; }
     const node = range.startContainer;
     if (node.nodeType !== Node.TEXT_NODE) { hideTagSuggest(); return; }
+    if (node.parentElement?.closest(".jv-htag")) { hideTagSuggest(); return; }
     const text = node.textContent.slice(0, range.startOffset);
     const match = text.match(/(^|[\s])(#[A-Za-z0-9_-]+)$/);
     if (match && match[2].length > 1) {
