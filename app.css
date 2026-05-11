@@ -676,7 +676,7 @@ button { font-family: inherit; }
 .jv-merged-composer:focus-within { border-color: var(--blue-50); box-shadow: 0 0 0 3px rgba(0,87,217,.10); }
 .jv-merged-composer.scope-team { background: linear-gradient(180deg, rgba(214,232,255,.35) 0%, #fff 60%); }
 .jv-merged-composer.scope-personal { background: linear-gradient(180deg, rgba(255,247,230,.40) 0%, #fff 60%); }
-.jv-merged-composer.listening { border-color: var(--red-50); box-shadow: 0 0 0 3px rgba(239,65,70,.10); }
+.jv-merged-composer.listening { border-color: var(--blue-60); box-shadow: 0 0 0 3px rgba(0,87,217,.10); }
 
 .jv-mc-top {
   display: flex; align-items: center; gap: 10px;
@@ -699,10 +699,10 @@ button { font-family: inherit; }
 .jv-mc-scope-btn.active { background: #fff; color: var(--text-primary); box-shadow: 0 1px 2px rgba(10,34,64,.08); font-weight: 600; }
 
 .jv-mc-status { margin-left: auto; font-size: 11px; color: var(--text-tertiary); }
-.jv-mc-status .live { display: inline-flex; align-items: center; gap: 6px; color: var(--red-60); font-weight: 600; }
+.jv-mc-status .live { display: inline-flex; align-items: center; gap: 6px; color: var(--blue-70); font-weight: 600; }
 .jv-mc-status .livedot {
   width: 8px; height: 8px; border-radius: 50%;
-  background: var(--red-50);
+  background: var(--blue-60);
   animation: pulse-dot 1.2s ease-in-out infinite;
 }
 @keyframes pulse-dot {
@@ -763,8 +763,8 @@ button { font-family: inherit; }
   transition: background .15s, transform .1s;
 }
 .jv-mc-mic:hover { background: var(--blue-70); transform: scale(1.05); }
-.jv-mc-mic.listening { background: var(--red-60); }
-.jv-mc-mic.listening:hover { background: var(--red-70); }
+.jv-mc-mic.listening { background: var(--blue-70); }
+.jv-mc-mic.listening:hover { background: var(--blue-80, #002f8a); }
 .jv-mc-mic .bars { display: inline-flex; align-items: center; gap: 2px; height: 14px; }
 .jv-mc-mic .bars i { width: 2.5px; background: #fff; border-radius: 1px; animation: voxbars 1s ease-in-out infinite; }
 .jv-mc-mic .bars i:nth-child(1) { height: 30%; animation-delay: 0s; }
@@ -1612,13 +1612,6 @@ button { font-family: inherit; }
 @keyframes voice-word {
   from { opacity: 0; transform: translateY(3px); }
   to { opacity: 1; transform: translateY(0); }
-}
-.jv-mc-mic.listening {
-  animation: mic-breathe 1.6s ease-in-out infinite;
-}
-@keyframes mic-breathe {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(218,30,40,.24); }
-  50% { box-shadow: 0 0 0 8px rgba(218,30,40,.08); }
 }
 .jv-modal-scrim { animation: backdrop-in 160ms var(--ease-productive) both; }
 .jv-focus-modal { animation: modal-scale 240ms var(--ease-expressive) both; transform-origin: center; }

@@ -109,6 +109,7 @@
     layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5M3 18l9 5 9-5"/>',
     user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/>',
     send: '<path d="M12 19V5M5 12l7-7 7 7"/>',
+    stop: '<rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor" stroke="none"/>',
   };
 
   function icon(name, size = 16) {
@@ -1286,7 +1287,7 @@
           <div class="jv-mc-actions">
             <button class="jv-link-btn" data-action="clear-composer" ${composerHasContent ? "" : "hidden"}>${icon("close", 11)} Clear</button>
             <button class="jv-mc-mic ${state.listening ? "listening" : ""}" data-action="toggle-dictation" title="${state.listening ? "Stop dictation" : "Tap to dictate"}">
-              ${icon("mic", 16)}
+              ${icon(state.listening ? "stop" : "mic", 16)}
             </button>
             <button class="jv-btn primary sm" data-action="save-composer" ${composerHasContent ? "" : "disabled"}>${icon("check", 11)} Save ${state.composerScope === "personal" ? "personal" : "team"}</button>
           </div>
