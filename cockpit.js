@@ -34,7 +34,6 @@
     toastTimers: {},
     pendingConfirm: null,
     devOpen: false,
-    reduceMotion: localStorage.getItem("jvReduceMotion") === "1",
     userMenuOpen: false,
     customizeMode: false,
     savingStatus: "",
@@ -230,7 +229,7 @@
     window.setTimeout(() => {
       state.justUpdated.delete(key);
       renderApp();
-    }, state.reduceMotion ? 80 : delay);
+    }, delay);
   }
 
   function skeleton(width = "100%", height = 12, className = "") {
@@ -599,7 +598,7 @@
   function renderApp() {
     logoSequence = 0;
     root.innerHTML = `
-      <div class="jv-app ${state.reduceMotion ? "reduce-motion" : ""} ${state.customizeMode ? "customize-mode" : ""} connection-${state.connection}">
+      <div class="jv-app ${state.customizeMode ? "customize-mode" : ""} connection-${state.connection}">
         ${renderTopBar()}
         <main class="jv-main">
           <div class="jv-stack">
@@ -665,17 +664,7 @@
   }
 
   function renderUserMenu() {
-    return `
-      <div class="jv-user-menu">
-        <label class="jv-pref-row">
-          <span>
-            <strong>Reduce motion</strong>
-            <small>Use direct state changes, no transitions.</small>
-          </span>
-          <input type="checkbox" data-input="reduce-motion" ${state.reduceMotion ? "checked" : ""} />
-        </label>
-      </div>
-    `;
+    return `<div class="jv-user-menu"></div>`;
   }
 
   function renderHistoricalRelationship() {
@@ -2490,10 +2479,6 @@
       renderApp();
     } else if (event.target.dataset.input === "docs-counterparty") {
       state.docsCounterparty = event.target.value;
-      renderApp();
-    } else if (event.target.dataset.input === "reduce-motion") {
-      state.reduceMotion = event.target.checked;
-      localStorage.setItem("jvReduceMotion", state.reduceMotion ? "1" : "0");
       renderApp();
     }
   });

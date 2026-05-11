@@ -1645,15 +1645,6 @@ button { font-family: inherit; }
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
-.reduce-motion *,
-.reduce-motion *::before,
-.reduce-motion *::after {
-  animation-duration: .001ms !important;
-  animation-iteration-count: 1 !important;
-  transition-duration: .001ms !important;
-  scroll-behavior: auto !important;
-}
-
 @media (max-width: 760px) {
   .jv-signal-stage {
     position: sticky;
@@ -2036,18 +2027,29 @@ button { font-family: inherit; }
 }
 .jv-signal-bubble {
   position: absolute;
-  top: -4px;
-  right: -2px;
-  min-width: 20px;
-  height: 20px;
+  top: -6px;
+  right: -8px;
+  min-width: 26px;
+  height: 22px;
   display: grid;
   place-items: center;
-  padding: 0 5px;
-  border: 2px solid #fff;
-  border-radius: 999px;
-  background: var(--blue-60);
-  color: #fff;
-  font: 800 10px/1 var(--font-sans);
+  padding: 0 7px;
+  border-radius: 11px 11px 11px 3px;
+  background: #e7eaf0;
+  color: #2a3142;
+  font: 700 11px/1 var(--font-sans);
+  box-shadow: 0 2px 6px rgba(10,34,64,.10);
+}
+.jv-signal-bubble::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  bottom: -4px;
+  width: 7px;
+  height: 7px;
+  background: #e7eaf0;
+  border-radius: 0 0 0 2px;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
 }
 .jv-insights-drawer {
   top: auto;
@@ -2962,19 +2964,6 @@ button { font-family: inherit; }
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .jarvis-logo *,
-  .jarvis-logo *::before,
-  .jarvis-logo *::after {
-    animation-duration: .001ms !important;
-    animation-iteration-count: 1 !important;
-    scroll-behavior: auto !important;
-    transition-duration: .001ms !important;
-  }
-  .jarvis-logo--thinking .jarvis-logo__ring,
-  .jarvis-logo--replying .jarvis-logo__ring,
-  .jarvis-logo--working .jarvis-logo__ring { transform: rotate(18deg); }
-}
 
 /* Inline hashtag suggestion pill */
 .jv-tag-suggest {
