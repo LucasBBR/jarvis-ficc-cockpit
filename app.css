@@ -2020,28 +2020,28 @@ button { font-family: inherit; }
 }
 .jv-signal-bubble {
   position: absolute;
-  top: -6px;
-  right: -8px;
-  min-width: 26px;
+  top: -8px;
+  right: -10px;
+  min-width: 28px;
   height: 22px;
   display: grid;
   place-items: center;
-  padding: 0 7px;
-  border-radius: 11px 11px 11px 3px;
-  background: #e7eaf0;
+  padding: 0 8px;
+  border-radius: 11px;
+  border-bottom-left-radius: 2px;
+  background: #d3d3d3;
   color: #2a3142;
   font: 700 11px/1 var(--font-sans);
-  box-shadow: 0 2px 6px rgba(10,34,64,.10);
+  filter: drop-shadow(0 2px 4px rgba(10,34,64,.14));
 }
 .jv-signal-bubble::after {
   content: "";
   position: absolute;
-  left: 2px;
-  bottom: -4px;
-  width: 7px;
+  left: 0;
+  bottom: -5px;
+  width: 9px;
   height: 7px;
-  background: #e7eaf0;
-  border-radius: 0 0 0 2px;
+  background: #d3d3d3;
   clip-path: polygon(0 0, 100% 0, 0 100%);
 }
 .jv-insights-drawer {
