@@ -34,7 +34,7 @@
     toastTimers: {},
     pendingConfirm: null,
     devOpen: false,
-    reduceMotion: localStorage.getItem("jvReduceMotion") === "1" || window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches,
+    reduceMotion: localStorage.getItem("jvReduceMotion") === "1",
     userMenuOpen: false,
     customizeMode: false,
     savingStatus: "",
