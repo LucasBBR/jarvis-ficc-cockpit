@@ -1192,7 +1192,7 @@
           `).join("")}
           ${state.thinking ? `
             <div class="jv-ask-thinking" role="status" aria-live="polite">
-              ${jarvisLogo("replying", 44)}
+              ${jarvisLogo("replying", 56)}
               <span class="jv-thinking-words">
                 <i>Reading</i>
                 <i>Linking</i>
