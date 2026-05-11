@@ -70,6 +70,7 @@
     askTimer: null,
   };
   let logoSequence = 0;
+  const logoActiveStates = new Set(["thinking", "replying", "working"]);
 
   const iconPaths = {
     search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
@@ -115,9 +116,16 @@
     return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${iconPaths[name] || ""}</svg>`;
   }
 
+  function jarvisActivityState() {
+    if (state.thinking) return "replying";
+    if (state.listening || state.draftStep > 0) return "working";
+    if (state.connection === "reconnecting" || state.loadingPanels.size || state.refreshingPanels.size) return "working";
+    return "idle";
+  }
+
   function jarvisLogo(logoState = "idle", size = 40, showLabel = false) {
     const uid = `jv-logo-${++logoSequence}`;
-    const label = logoState === "thinking" ? "thinking" : "idle";
+    const label = logoActiveStates.has(logoState) ? logoState : "idle";
     return `
       <span class="jarvis-logo jarvis-logo--${label} ${showLabel ? "jarvis-logo--labeled" : ""}" style="--jarvis-size:${size}px" data-state="${label}">
         <svg class="jarvis-logo__mark" viewBox="0 0 120 120" role="img" aria-labelledby="${uid}-title" focusable="false">
@@ -130,8 +138,8 @@
             </radialGradient>
             <radialGradient id="${uid}-halo" cx="50%" cy="50%" r="58%">
               <stop offset="58%" stop-color="var(--jarvis-blue-2)" stop-opacity="0"></stop>
-              <stop offset="76%" stop-color="var(--jarvis-blue-3)" stop-opacity="0.3"></stop>
-              <stop offset="91%" stop-color="var(--jarvis-blue-light)" stop-opacity="0.16"></stop>
+              <stop offset="76%" stop-color="var(--jarvis-blue-3)" stop-opacity="0.44"></stop>
+              <stop offset="91%" stop-color="var(--jarvis-blue-light)" stop-opacity="0.28"></stop>
               <stop offset="100%" stop-color="var(--jarvis-blue-light)" stop-opacity="0"></stop>
             </radialGradient>
             <linearGradient id="${uid}-ring" x1="20" y1="20" x2="100" y2="100">
@@ -636,7 +644,7 @@
       <div class="jv-topbar">
         <div class="jv-brand">
           <div class="jv-jarvis-logo" title="Jarvis">
-            ${jarvisLogo("idle", 28)}
+            ${jarvisLogo(jarvisActivityState(), 32)}
           </div>
           <div>
             <div class="jv-brand-name">${state.clientSelected ? escapeHtml(data.client.group) : "No client selected"}</div>
@@ -1087,14 +1095,14 @@
     const signalToggleLabel = state.jarvisSignalsCollapsed ? "Show Insights" : "Hide Insights";
     return `
       ${state.insightsOpen ? "" : `<button class="jv-jarvis-fab" data-action="toggle-insights" aria-expanded="false" title="Open Jarvis">
-        ${jarvisLogo(state.thinking ? "thinking" : "idle", 46)}
+        ${jarvisLogo(jarvisActivityState(), 58)}
         ${visibleInsights.length ? `<span class="jv-signal-bubble">${visibleInsights.length}</span>` : ""}
       </button>`}
       ${state.insightsOpen ? `
         <div class="jv-insights-backdrop ${state.jarvisFullscreen ? "fullscreen" : ""}" data-action="close-insights"></div>
         <aside class="jv-insights-drawer ${state.jarvisFullscreen ? "fullscreen" : ""} ${state.jarvisSignalsCollapsed ? "signals-collapsed" : ""}" aria-label="Jarvis chat">
           <header class="jv-insights-head">
-            ${jarvisLogo(state.thinking ? "thinking" : "idle", 42)}
+            ${jarvisLogo(jarvisActivityState(), 52)}
             <div>
               <div class="summary">
                 ${visibleInsights.length ? `<button class="jv-insights-head-toggle" data-action="toggle-jarvis-signals">
@@ -1193,7 +1201,7 @@
           ${state.chat.map((message) => `
             <div class="jv-ask-msg ${message.who === "Jarvis" ? "jarvis" : "user"}">
               <div class="head">
-                <span class="who">${message.who === "Jarvis" ? jarvisLogo("idle", 14) : ""}${escapeHtml(message.who)}</span>
+                <span class="who">${escapeHtml(message.who)}</span>
                 <span class="ts">${escapeHtml(message.ts)}</span>
               </div>
               <div class="text">${escapeHtml(message.text)}</div>
@@ -1201,7 +1209,7 @@
           `).join("")}
           ${state.thinking ? `
             <div class="jv-ask-thinking" role="status" aria-live="polite">
-              ${jarvisLogo("thinking", 34)}
+              ${jarvisLogo("replying", 44)}
               <span class="jv-thinking-words">
                 <i>Reading</i>
                 <i>Linking</i>
@@ -1212,7 +1220,6 @@
           ` : ""}
         </div>
         <div class="jv-ask-input">
-          ${jarvisLogo(state.thinking ? "thinking" : "idle", 20)}
           <textarea data-input="ask" rows="1" placeholder="Ask Jarvis anything about Vale...">${escapeHtml(state.askDraft)}</textarea>
           <button class="send" data-action="send-ask" ${cleanText(state.askDraft) ? "" : "disabled"} title="Send">${icon("send", 14)}</button>
         </div>
@@ -1318,10 +1325,10 @@
 
   function renderComposerStatus() {
     if (state.listening) {
-      return `<span class="live">${jarvisLogo("thinking", 16)}<span class="livedot"></span>Jarvis listening · ${state.voiceWords.length ? `<span class="jv-voice-words">${state.voiceWords.map((word) => `<i>${escapeHtml(word)}</i>`).join(" ")}</span>` : "0:42"}</span>`;
+      return `<span class="live">${jarvisLogo("working", 18)}<span class="livedot"></span>Jarvis listening · ${state.voiceWords.length ? `<span class="jv-voice-words">${state.voiceWords.map((word) => `<i>${escapeHtml(word)}</i>`).join(" ")}</span>` : "0:42"}</span>`;
     }
     if (state.savingStatus) return `<span class="dictated">${escapeHtml(state.savingStatus)}</span>`;
-    if (state.hasDictated) return `<span class="dictated">${jarvisLogo("idle", 16)}Drafted by Jarvis · edit freely</span>`;
+    if (state.hasDictated) return `<span class="dictated">${jarvisLogo("idle", 18)}Drafted by Jarvis · edit freely</span>`;
     return '<span class="hint">Click a tag chip or type #word</span>';
   }
 
@@ -2033,7 +2040,6 @@
       el = document.createElement("button");
       el.className = "jv-tag-suggest";
       el.type = "button";
-      el.hidden = true;
       el.addEventListener("mousedown", (e) => {
         e.preventDefault();
         const editor = root.querySelector('[data-editor="composer"]');
@@ -2049,13 +2055,9 @@
     return el;
   }
 
-  let _tagSuggestLocked = false;
-
   function showTagSuggest(word, editor) {
-    if (_tagSuggestLocked) return;
     const el = getTagSuggestEl();
     el.textContent = word;
-    el.hidden = false;
     try {
       const sel = window.getSelection();
       if (sel && sel.rangeCount) {
@@ -2078,7 +2080,7 @@
 
   function hideTagSuggest() {
     const el = root.querySelector(".jv-tag-suggest");
-    if (el) el.hidden = true;
+    if (el) el.remove();
   }
 
   function commitTagFromSuggest(editor) {
@@ -2111,9 +2113,7 @@
     sel.removeAllRanges();
     sel.addRange(newRange);
     state.composerHtml = editor.innerHTML;
-    _tagSuggestLocked = true;
     hideTagSuggest();
-    setTimeout(() => { _tagSuggestLocked = false; }, 500);
     updateComposerControls();
   }
 
@@ -2522,7 +2522,7 @@
     if (event.target.dataset.editor === "composer" && event.key === "Tab") {
       event.preventDefault();
       const suggestEl = root.querySelector(".jv-tag-suggest");
-      if (suggestEl && !suggestEl.hidden) {
+      if (suggestEl) {
         commitTagFromSuggest(event.target);
       } else {
         runEditorCommand("insertHTML", "&nbsp;&nbsp;", '[data-editor="composer"]');
@@ -2542,7 +2542,6 @@
   });
 
   function checkTagSuggest() {
-    if (_tagSuggestLocked) return;
     const editor = root.querySelector('[data-editor="composer"]');
     if (!editor) { hideTagSuggest(); return; }
     const sel = window.getSelection();
