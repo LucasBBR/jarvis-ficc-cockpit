@@ -88,7 +88,7 @@ button { font-family: inherit; }
 }
 .jarvis-logo--thinking .jarvis-logo__ring,
 .jarvis-logo--replying .jarvis-logo__ring,
-.jarvis-logo--working .jarvis-logo__ring { animation: jarvis-rotate 1.1s cubic-bezier(.5,.15,.5,.85) infinite; }
+.jarvis-logo--working .jarvis-logo__ring { animation: jarvis-rotate 1.2s cubic-bezier(.5,.15,.5,.85) infinite; }
 .jarvis-logo--thinking .jarvis-logo__ring-arc--primary,
 .jarvis-logo--replying .jarvis-logo__ring-arc--primary,
 .jarvis-logo--working .jarvis-logo__ring-arc--primary { stroke-opacity: 1; }
