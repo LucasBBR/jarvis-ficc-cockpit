@@ -2143,7 +2143,7 @@
         text: "Pulling from CRM, P&L feed and recent voice notes — give me a moment to draft a clean answer.",
       });
       updateAskPanel(true);
-    }, 2500);
+    }, 2900);
   }
 
   function clearDictationTimers() {

@@ -88,7 +88,7 @@ button { font-family: inherit; }
 }
 .jarvis-logo--thinking .jarvis-logo__ring,
 .jarvis-logo--replying .jarvis-logo__ring,
-.jarvis-logo--working .jarvis-logo__ring { animation: jarvis-rotate 1.2s linear infinite; }
+.jarvis-logo--working .jarvis-logo__ring { animation: jarvis-rotate 1.4s cubic-bezier(.45,.05,.55,.95) infinite; }
 .jarvis-logo--thinking .jarvis-logo__ring-arc--primary,
 .jarvis-logo--replying .jarvis-logo__ring-arc--primary,
 .jarvis-logo--working .jarvis-logo__ring-arc--primary { stroke-opacity: 1; }
@@ -2533,15 +2533,12 @@ button { font-family: inherit; }
 }
 .jv-ask-thinking .jarvis-logo__ring-base {
   stroke: rgba(0,87,217,.14);
-  stroke-width: 3;
 }
 .jv-ask-thinking .jarvis-logo__ring-arc--primary {
   stroke: #0057d9;
-  stroke-width: 7;
 }
 .jv-ask-thinking .jarvis-logo__ring-arc--secondary {
   stroke: rgba(0,87,217,.5);
-  stroke-width: 3.4;
 }
 .jv-thinking-words {
   position: relative;
