@@ -136,35 +136,18 @@
               <stop offset="46%" stop-color="var(--jarvis-core)"></stop>
               <stop offset="100%" stop-color="#00030a"></stop>
             </radialGradient>
-            <radialGradient id="${uid}-halo" cx="50%" cy="50%" r="58%">
-              <stop offset="58%" stop-color="var(--jarvis-blue-2)" stop-opacity="0"></stop>
-              <stop offset="76%" stop-color="var(--jarvis-blue-3)" stop-opacity="0.44"></stop>
-              <stop offset="91%" stop-color="var(--jarvis-blue-light)" stop-opacity="0.28"></stop>
-              <stop offset="100%" stop-color="var(--jarvis-blue-light)" stop-opacity="0"></stop>
-            </radialGradient>
             <linearGradient id="${uid}-ring" x1="20" y1="20" x2="100" y2="100">
-              <stop offset="0%" stop-color="var(--jarvis-blue-light)"></stop>
-              <stop offset="31%" stop-color="var(--jarvis-blue-3)"></stop>
-              <stop offset="62%" stop-color="var(--jarvis-blue-2)"></stop>
-              <stop offset="100%" stop-color="var(--jarvis-blue-light)"></stop>
+              <stop offset="0%" stop-color="var(--jarvis-ring-highlight)"></stop>
+              <stop offset="36%" stop-color="var(--jarvis-ring-primary)"></stop>
+              <stop offset="72%" stop-color="var(--jarvis-ring-deep)"></stop>
+              <stop offset="100%" stop-color="var(--jarvis-ring-highlight)"></stop>
             </linearGradient>
-            <filter id="${uid}-glow" x="-80%" y="-80%" width="260%" height="260%">
-              <feGaussianBlur stdDeviation="3.5" result="blur"></feGaussianBlur>
-              <feMerge><feMergeNode in="blur"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
-            </filter>
           </defs>
-          <circle class="jarvis-logo__aura" cx="60" cy="60" r="52" fill="url(#${uid}-halo)"></circle>
-          <circle class="jarvis-logo__core-shadow" cx="60" cy="60" r="39" fill="var(--jarvis-bg)"></circle>
           <circle class="jarvis-logo__core" cx="60" cy="60" r="36.5" fill="url(#${uid}-core)"></circle>
-          <circle class="jarvis-logo__inner-rim" cx="60" cy="60" r="35" fill="none" stroke="var(--jarvis-blue-light)" stroke-opacity="0.08" stroke-width="1"></circle>
           <g class="jarvis-logo__ring">
-            <circle class="jarvis-logo__ring-base" cx="60" cy="60" r="43" fill="none" stroke="var(--jarvis-blue)" stroke-opacity="0.28" stroke-width="2"></circle>
-            <circle class="jarvis-logo__ring-arc jarvis-logo__ring-arc--primary" cx="60" cy="60" r="43" fill="none" stroke="url(#${uid}-ring)" stroke-dasharray="92 178" stroke-linecap="round" stroke-width="3.4" filter="url(#${uid}-glow)"></circle>
-            <circle class="jarvis-logo__ring-arc jarvis-logo__ring-arc--secondary" cx="60" cy="60" r="43" fill="none" stroke="var(--jarvis-blue-light)" stroke-dasharray="24 246" stroke-dashoffset="122" stroke-linecap="round" stroke-opacity="0.72" stroke-width="2.2"></circle>
-          </g>
-          <g class="jarvis-logo__orbit">
-            <circle class="jarvis-logo__orbit-track" cx="60" cy="60" r="49" fill="none" stroke="var(--jarvis-blue-light)" stroke-dasharray="2 12" stroke-linecap="round" stroke-opacity="0.18" stroke-width="1"></circle>
-            <circle class="jarvis-logo__orbit-point" cx="60" cy="11" r="2.35" fill="var(--jarvis-blue-light)" filter="url(#${uid}-glow)"></circle>
+            <circle class="jarvis-logo__ring-base" cx="60" cy="60" r="43" fill="none" stroke="var(--jarvis-ring-base)" stroke-width="2"></circle>
+            <circle class="jarvis-logo__ring-arc jarvis-logo__ring-arc--primary" cx="60" cy="60" r="43" fill="none" stroke="url(#${uid}-ring)" stroke-dasharray="92 178" stroke-linecap="round" stroke-width="4"></circle>
+            <circle class="jarvis-logo__ring-arc jarvis-logo__ring-arc--secondary" cx="60" cy="60" r="43" fill="none" stroke="var(--jarvis-ring-secondary)" stroke-dasharray="24 246" stroke-dashoffset="122" stroke-linecap="round" stroke-width="2.4"></circle>
           </g>
           <g class="jarvis-logo__eyes">
             <rect class="jarvis-logo__eye jarvis-logo__eye--left" x="48.4" y="49.2" width="10.8" height="21.6" rx="5.4" transform="rotate(-1 53.8 60)"></rect>
